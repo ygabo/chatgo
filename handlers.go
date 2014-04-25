@@ -6,6 +6,7 @@ import (
 	"fmt"
 	rethink "github.com/dancannon/gorethink"
 	"github.com/go-martini/martini"
+	"github.com/gorilla/websocket"
 	"github.com/martini-contrib/render"
 	"github.com/martini-contrib/sessionauth"
 	"github.com/martini-contrib/sessions"
@@ -121,73 +122,38 @@ func postLoginHandler(session sessions.Session, userLoggingIn User, r render.Ren
 	}
 }
 
-// func postTodoHandler(user sessionauth.User, todo Todo, r render.Render, req *http.Request) {
-// 	todo.UserId = user.(*User).UniqueId().(string)
-// 	var err error
-// 	if todo.Id == "" {
-// 		todo.Created = time.Now()
-// 		_, err = rethink.Table("todo").Insert(todo).RunWrite(dbSession)
-// 	} else {
-// 		_, err = rethink.Table("todo").Update(todo).RunWrite(dbSession)
-// 	}
-// 	fmt.Println("ID:", todo.Id)
-// 	if err != nil {
-// 		fmt.Println("Error saving new todo", err)
-// 		r.JSON(500, 0) // return empty
-// 	} else {
-// 		r.JSON(200, 1) // return OK
-// 	}
-// }
+func sendAll(msg []byte) {
+	for conn := range connections {
+		if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+			delete(connections, conn)
+			conn.Close()
+		}
+	}
+}
 
-// func deleteTodoHandler(user sessionauth.User, r render.Render, parms martini.Params, req *http.Request) {
-// 	todoID := parms["id"]
-// 	var err error
+var connections map[*websocket.Conn]bool
 
-// 	if todoID != "" {
-// 		_, err = rethink.Table("todo").Get(todoID).Delete().RunWrite(dbSession)
-// 	} else {
-// 		err = errors.New("Invalid ID.")
-// 	}
-// 	if err != nil {
-// 		r.JSON(500, 0) // return empty
-// 	} else {
-// 		r.JSON(200, 1)
-// 	}
-// }
+func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
+	// Taken from gorilla's website
+	conn, err := websocket.Upgrade(w, r, nil, 1024, 1024)
+	if _, ok := err.(websocket.HandshakeError); ok {
+		return
+	} else if err != nil {
+		log.Println(err)
+		return
+	}
+	log.Println("Succesfully upgraded connection")
+	connections[conn] = true
 
-// func getTodoPage(user sessionauth.User, r render.Render, req *http.Request) {
-// 	items, err := user.(*User).GetMyTodoList()
-// 	if err != nil {
-// 		fmt.Println("Error getting todo list", err)
-// 		items = nil
-// 	} else {
-// 		fmt.Println("Success, returning list.")
-// 	}
-// 	r.HTML(200, "todo", items)
-// }
-
-// func getTodoJSON(session sessions.Session, user sessionauth.User, r render.Render, parms martini.Params, req *http.Request) {
-// 	var items *[]Todo
-// 	var item *Todo
-// 	var err error
-
-// 	id := parms["id"]
-// 	if id != "" {
-// 		item, err = user.(*User).GetMyTodoByID(id)
-// 	} else {
-// 		items, err = user.(*User).GetMyTodoList()
-// 	}
-
-// 	if err != nil {
-// 		fmt.Println("Error getting todo list", err)
-// 		items = nil
-// 	} else {
-// 		fmt.Println("Success, returning list.")
-// 	}
-
-// 	if id != "" {
-// 		r.JSON(200, item)
-// 	} else {
-// 		r.JSON(200, items)
-// 	}
-// }
+	for {
+		// Blocks until a message is read
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			delete(connections, conn)
+			conn.Close()
+			return
+		}
+		log.Println(string(msg))
+		sendAll(msg)
+	}
+}

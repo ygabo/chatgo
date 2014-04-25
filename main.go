@@ -21,27 +21,27 @@ var (
 )
 
 func init() {
-	var dbError error
-	dbSession, dbError = rethink.Connect(rethink.ConnectOpts{
-		Address:  "localhost:28015",
-		Database: "todo"})
-	if dbError != nil {
-		log.Fatalln(dbError.Error())
-	}
+	// var dbError error
+	// dbSession, dbError = rethink.Connect(rethink.ConnectOpts{
+	// 	Address:  "localhost:28015",
+	// 	Database: "todo"})
+	// if dbError != nil {
+	// 	log.Fatalln(dbError.Error())
+	// }
 
-	// Testing purposes: query myself.
-	me := User{Email: "yelnil@example.com"}
-	hpass, _ := bcrypt.GenerateFromPassword([]byte("qwe"), bcrypt.DefaultCost)
-	me.Password = string(hpass)
-	row, err := rethink.Table("user").Filter(rethink.Row.Field("email").Eq(me.Email)).RunRow(dbSession)
-	if err != nil {
-		fmt.Println(err)
-	}
-	// I don't exist, insert me.
-	if row.IsNil() {
-		rethink.Table("user").Insert(me).RunWrite(dbSession)
-		return
-	}
+	// // Testing purposes: query myself.
+	// me := User{Email: "yelnil@example.com"}
+	// hpass, _ := bcrypt.GenerateFromPassword([]byte("qwe"), bcrypt.DefaultCost)
+	// me.Password = string(hpass)
+	// row, err := rethink.Table("user").Filter(rethink.Row.Field("email").Eq(me.Email)).RunRow(dbSession)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// // I don't exist, insert me.
+	// if row.IsNil() {
+	// 	rethink.Table("user").Insert(me).RunWrite(dbSession)
+	// 	return
+	// }
 	//row.Scan(&me)
 	//todo := Todo{UserId: me.UniqueId().(string), Body: "Finish todo app.", Completed: false}
 	//rethink.Table("todo").Insert(todo).RunWrite(dbSession)
@@ -69,9 +69,10 @@ func main() {
 	m.Get("/login", getLoginHandler)
 	m.Get("/register", getRegisterHandler)
 	m.Get("/logout", sessionauth.LoginRequired, logoutHandler)
-	m.Get("/room", sessionauth.LoginRequired, getRoom)
 	m.Post("/login", binding.Bind(User{}), postLoginHandler)
 	m.Post("/register", binding.Bind(User{}), postRegisterHandler)
+
+	m.Get("/room", sessionauth.LoginRequired, wsHandler)
 
 	// m.Get("/todo.json", sessionauth.LoginRequired, getTodoJSON)
 	// m.Get("/todo.json/:id", sessionauth.LoginRequired, getTodoJSON)
