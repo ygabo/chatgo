@@ -5,15 +5,15 @@
 package main
 
 import (
-	"code.google.com/p/go.crypto/bcrypt"
-	"fmt"
+	// "code.google.com/p/go.crypto/bcrypt"
+	// "fmt"
 	rethink "github.com/dancannon/gorethink"
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
 	"github.com/martini-contrib/sessionauth"
 	"github.com/martini-contrib/sessions"
-	"log"
+	// "log"
 )
 
 var (

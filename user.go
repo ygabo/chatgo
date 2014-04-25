@@ -4,7 +4,7 @@
 package main
 
 import (
-	"errors"
+	// "errors"
 	rethink "github.com/dancannon/gorethink"
 	"github.com/martini-contrib/sessionauth"
 	"time"

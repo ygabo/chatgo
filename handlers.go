@@ -2,16 +2,17 @@ package main
 
 import (
 	"code.google.com/p/go.crypto/bcrypt"
-	"errors"
+	// "errors"
 	"fmt"
 	rethink "github.com/dancannon/gorethink"
-	"github.com/go-martini/martini"
+	// "github.com/go-martini/martini"
 	"github.com/gorilla/websocket"
 	"github.com/martini-contrib/render"
 	"github.com/martini-contrib/sessionauth"
 	"github.com/martini-contrib/sessions"
 	"net/http"
-	"time"
+	// "time"
+	"log"
 )
 
 func indexHandler(r render.Render) {
