@@ -2,17 +2,14 @@ package main
 
 import (
 	"code.google.com/p/go.crypto/bcrypt"
-	// "errors"
 	"fmt"
 	rethink "github.com/dancannon/gorethink"
-	// "github.com/go-martini/martini"
 	"github.com/gorilla/websocket"
 	"github.com/martini-contrib/render"
 	"github.com/martini-contrib/sessionauth"
 	"github.com/martini-contrib/sessions"
-	"net/http"
-	// "time"
 	"log"
+	"net/http"
 )
 
 func indexHandler(r render.Render) {
@@ -123,6 +120,10 @@ func postLoginHandler(session sessions.Session, userLoggingIn User, r render.Ren
 	}
 }
 
+func getHub(r render.Render) {
+	r.HTML(200, "room", nil)
+}
+
 func sendAll(msg []byte) {
 	for conn := range connections {
 		if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
@@ -132,18 +133,16 @@ func sendAll(msg []byte) {
 	}
 }
 
-var connections map[*websocket.Conn]bool
-
 func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 	// Taken from gorilla's website
 	conn, err := websocket.Upgrade(w, r, nil, 1024, 1024)
 	if _, ok := err.(websocket.HandshakeError); ok {
 		return
 	} else if err != nil {
-		log.Println(err)
 		return
 	}
-	log.Println("Succesfully upgraded connection")
+
+	fmt.Println("hello")
 	connections[conn] = true
 
 	for {

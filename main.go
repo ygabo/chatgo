@@ -5,43 +5,45 @@
 package main
 
 import (
-	// "code.google.com/p/go.crypto/bcrypt"
-	// "fmt"
+	"code.google.com/p/go.crypto/bcrypt"
+	"fmt"
 	rethink "github.com/dancannon/gorethink"
 	"github.com/go-martini/martini"
+	"github.com/gorilla/websocket"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
 	"github.com/martini-contrib/sessionauth"
 	"github.com/martini-contrib/sessions"
-	// "log"
+	"log"
 )
 
-var (
-	dbSession *rethink.Session
-)
+var dbSession *rethink.Session
+var connections map[*websocket.Conn]bool
 
 func init() {
-	// var dbError error
-	// dbSession, dbError = rethink.Connect(rethink.ConnectOpts{
-	// 	Address:  "localhost:28015",
-	// 	Database: "todo"})
-	// if dbError != nil {
-	// 	log.Fatalln(dbError.Error())
-	// }
+	connections = make(map[*websocket.Conn]bool)
 
-	// // Testing purposes: query myself.
-	// me := User{Email: "yelnil@example.com"}
-	// hpass, _ := bcrypt.GenerateFromPassword([]byte("qwe"), bcrypt.DefaultCost)
-	// me.Password = string(hpass)
-	// row, err := rethink.Table("user").Filter(rethink.Row.Field("email").Eq(me.Email)).RunRow(dbSession)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// // I don't exist, insert me.
-	// if row.IsNil() {
-	// 	rethink.Table("user").Insert(me).RunWrite(dbSession)
-	// 	return
-	// }
+	var dbError error
+	dbSession, dbError = rethink.Connect(rethink.ConnectOpts{
+		Address:  "localhost:28015",
+		Database: "todo"})
+	if dbError != nil {
+		log.Fatalln(dbError.Error())
+	}
+
+	// Testing purposes: query myself.
+	me := User{Email: "yelnil@example.com"}
+	hpass, _ := bcrypt.GenerateFromPassword([]byte("qwe"), bcrypt.DefaultCost)
+	me.Password = string(hpass)
+	row, err := rethink.Table("user").Filter(rethink.Row.Field("email").Eq(me.Email)).RunRow(dbSession)
+	if err != nil {
+		fmt.Println(err)
+	}
+	// I don't exist, insert me.
+	if row.IsNil() {
+		rethink.Table("user").Insert(me).RunWrite(dbSession)
+		return
+	}
 	//row.Scan(&me)
 	//todo := Todo{UserId: me.UniqueId().(string), Body: "Finish todo app.", Completed: false}
 	//rethink.Table("todo").Insert(todo).RunWrite(dbSession)
@@ -73,12 +75,7 @@ func main() {
 	m.Post("/register", binding.Bind(User{}), postRegisterHandler)
 
 	m.Get("/room", sessionauth.LoginRequired, wsHandler)
-
-	// m.Get("/todo.json", sessionauth.LoginRequired, getTodoJSON)
-	// m.Get("/todo.json/:id", sessionauth.LoginRequired, getTodoJSON)
-	// m.Post("/todo.json", sessionauth.LoginRequired, binding.Bind(Todo{}), postTodoHandler)
-	// m.Post("/todo.json/:id", sessionauth.LoginRequired, binding.Bind(Todo{}), postTodoHandler)
-	// m.Delete("/todo.json/:id", sessionauth.LoginRequired, deleteTodoHandler)
+	m.Get("/hub", sessionauth.LoginRequired, getHub)
 
 	m.Use(martini.Static("static"))
 	m.Run()
