@@ -52,6 +52,7 @@
 		// called when the connection to the server is made
 		conn.onopen = function(e) {
 			$scope.$apply(function(){
+				console.log("we here")
 				$scope.messages.push("CONNECTED");
 			})
 		};
@@ -64,7 +65,11 @@
 		};
 
 		$scope.send = function() {
-			conn.send($scope.msg);
+			console.log("sendddd")
+			conn.send(JSON.stringify({
+  				hub_id: "default",
+  				body: $scope.msg
+			}));
 			$scope.msg = "";
 		}
 	}]);

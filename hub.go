@@ -28,8 +28,9 @@ func init() {
 	hubMap = make(map[string]*hub)
 	userHubMap = make(map[string]map[string]bool)
 	h = newHub()
-
 	hubMap["default"] = h
+
+	go h.run()
 }
 
 func newHub() *hub {
