@@ -34,13 +34,12 @@ func init() {
 }
 
 func newHub() *hub {
-	var h = hub{
+	return &hub{
 		broadcast:   make(chan []byte),
 		register:    make(chan *connection),
 		unregister:  make(chan *connection),
 		connections: make(map[*connection]bool),
 	}
-	return &h
 }
 
 func (h *hub) run() {
@@ -52,7 +51,7 @@ func (h *hub) run() {
 			delete(h.connections, c)
 			close(c.send)
 			// TODO close down hub if no connections
-			// unless it's default
+			// unless it's default hub
 		case m := <-h.broadcast:
 			for c := range h.connections {
 				select {

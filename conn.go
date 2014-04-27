@@ -73,20 +73,15 @@ func (c *connection) readPump() {
 	c.ws.SetReadDeadline(time.Now().Add(pongWait))
 	c.ws.SetPongHandler(func(string) error { c.ws.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
-
-		fmt.Println("Inside read pump loop:", c.userID)
 		msg := messageFrom{}
 		err := c.ws.ReadJSON(&msg)
 		fmt.Println(msg)
 		if err != nil {
 			fmt.Println("msg error: ", err)
 			break
-		} else {
-			fmt.Println("msg: ", msg)
 		}
-
 		// Send the message to the proper hub
-		// Check if user has is part of the hub first.
+		// Check if user is part of the hub first.
 		// Then send the message to the hub.
 		if userHubMap[c.userID][msg.HubID] {
 			hubMap[msg.HubID].broadcast <- []byte(msg.Body)
@@ -132,10 +127,13 @@ func (c *connection) writePump() {
 // The user has to be logged in to get to this point
 func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 	userID := user.UniqueId().(string)
-	ws, err := upgrader.Upgrade(w, r, nil)
+	if userDuplicate := connMap[userID]; userDuplicate != nil {
+		return // user already has websocket connection
+	}
 
+	ws, err := upgrader.Upgrade(w, r, nil)
 	if _, ok := err.(websocket.HandshakeError); ok {
-		fmt.Println("Not ok", ok)
+		fmt.Println("Error with handshake, not ok. ", ok)
 		return
 	} else if err != nil {
 		fmt.Println("Handshake error, ", err)
@@ -143,15 +141,23 @@ func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 	}
 
 	c := &connection{userID: userID, send: make(chan []byte, 256), ws: ws}
-	fmt.Println("C is ", c)
 	connMap[userID] = c // remember user's connection
-	if m := userHubMap[userID]; m != nil {
-		userHubMap[userID]["default"] = true
-	} else {
-		userHubMap[userID] = make(map[string]bool) // add default hub into user's hubs
-		userHubMap[userID]["default"] = true
+
+	// add default hub into user's hubs when first connecting
+	if m := userHubMap[userID]; m == nil {
+		userHubMap[userID] = make(map[string]bool)
 	}
-	hubMap["default"].register <- c // register the user in the default hub
+	userHubMap[userID]["default"] = true
+
+	// default hub isn't there, initialize firt
+	if defaultHub := hubMap["default"]; defaultHub == nil {
+		hubMap["default"] = newHub()
+		go hubMap["default"].run()
+	}
+
+	// register the user in the default hub
+	hubMap["default"].register <- c
+
 	go c.writePump()
 	c.readPump()
 }
