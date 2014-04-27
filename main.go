@@ -5,6 +5,9 @@
 package main
 
 import (
+	"fmt"
+	"log"
+
 	rethink "github.com/dancannon/gorethink"
 
 	"code.google.com/p/go.crypto/bcrypt"
@@ -13,9 +16,6 @@ import (
 	"github.com/martini-contrib/render"
 	"github.com/martini-contrib/sessionauth"
 	"github.com/martini-contrib/sessions"
-
-	"fmt"
-	"log"
 )
 
 var dbSession *rethink.Session

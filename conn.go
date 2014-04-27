@@ -2,15 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This is edited version of the gorilla websocket example.
+// This supports multiple hubs, ie multiple chatrooms.
 package main
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/gorilla/websocket"
 	"github.com/martini-contrib/render"
 	"github.com/martini-contrib/sessionauth"
-	"net/http"
-	"time"
 )
 
 const (
@@ -67,13 +70,14 @@ func (c *connection) readPump() {
 		fmt.Println("Conn closed", c.userID)
 		// if this conn is closed, user is done
 		// unregister from all its hubs, clean the maps
-		for userHub := range userHubMap[c.userID] {
-			hubMap[userHub].unregister <- c
+		for u := range userHubMap[c.userID] {
+			hubMap[u].unregister <- c
 		}
 		delete(userHubMap, c.userID)
 		delete(connMap, c.userID)
 		c.ws.Close()
 	}()
+
 	c.ws.SetReadLimit(maxMessageSize)
 	c.ws.SetReadDeadline(time.Now().Add(pongWait))
 	c.ws.SetPongHandler(func(string) error { c.ws.SetReadDeadline(time.Now().Add(pongWait)); return nil })

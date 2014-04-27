@@ -23,13 +23,12 @@ var (
 )
 
 type User struct {
-	Id            string          `form:"-" gorethink:"id,omitempty"`
-	Email         string          `form:"email" gorethink:"email"`
-	Password      string          `form:"password" gorethink:"password"`
-	Username      string          `form:"-" gorethink:"username,omitempty"`
-	Hubs          map[string]bool `form:"-" gorethink:"-"`
-	Created       time.Time       `form:"-" gorethink:"-"`
-	authenticated bool            `form:"-" gorethink:"-"`
+	Id            string    `form:"-" gorethink:"id,omitempty"`
+	Email         string    `form:"email" gorethink:"email"`
+	Password      string    `form:"password" gorethink:"password"`
+	Username      string    `form:"-" gorethink:"username,omitempty"`
+	Created       time.Time `form:"-" gorethink:"-"`
+	authenticated bool      `form:"-" gorethink:"-"`
 }
 
 // GetAnonymousUser should generate an anonymous user model
@@ -100,7 +99,6 @@ func getRegisterHandler(user sessionauth.User, r render.Render) {
 }
 
 func postRegisterHandler(session sessions.Session, newUser User, r render.Render, req *http.Request) {
-
 	if session.Get(sessionauth.SessionKey) != nil {
 		fmt.Println("Logged in already! Logout first.")
 		r.Redirect(INDEX_PAGE)
@@ -146,6 +144,12 @@ func postRegisterHandler(session sessions.Session, newUser User, r render.Render
 }
 
 func postLoginHandler(session sessions.Session, userLoggingIn User, r render.Render, req *http.Request) {
+	if session.Get(sessionauth.SessionKey) != nil {
+		fmt.Println("Logged in already! Logout first.")
+		r.Redirect(INDEX_PAGE)
+		return
+	}
+
 	var userInDb User
 	query := rethink.Table("user").Filter(rethink.Row.Field("email").Eq(userLoggingIn.Email))
 	row, err := query.RunRow(dbSession)
