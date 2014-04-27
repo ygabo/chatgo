@@ -4,11 +4,11 @@ import (
 	"code.google.com/p/go.crypto/bcrypt"
 	"fmt"
 	rethink "github.com/dancannon/gorethink"
-	"github.com/gorilla/websocket"
+	// "github.com/gorilla/websocket"
 	"github.com/martini-contrib/render"
 	"github.com/martini-contrib/sessionauth"
 	"github.com/martini-contrib/sessions"
-	"log"
+	// "log"
 	"net/http"
 )
 

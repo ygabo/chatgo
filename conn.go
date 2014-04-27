@@ -78,8 +78,8 @@ func (c *connection) readPump() {
 		// Send the message to the proper hub
 		// Check if user has is part of the hub first.
 		// Then send the message to the hub.
-		if userHubMa[c.userID][msg.hubID] {
-			hubMap[msg.hubID].broadcast <- msg
+		if userHubMap[c.userID][msg.hubID] {
+			hubMap[msg.hubID].broadcast <- []byte(msg.body)
 		}
 	}
 }
@@ -121,7 +121,8 @@ func (c *connection) writePump() {
 // The user has to be logged in to get to this point
 func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 	userID := user.UniqueId().(string)
-	conn, err := websocket.Upgrade(w, r, nil, 1024, 1024)
+	ws, err := upgrader.Upgrade(w, r, nil)
+
 	if _, ok := err.(websocket.HandshakeError); ok {
 		return
 	} else if err != nil {
