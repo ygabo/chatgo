@@ -5,21 +5,22 @@
 package main
 
 import (
-	"code.google.com/p/go.crypto/bcrypt"
-	"fmt"
 	rethink "github.com/dancannon/gorethink"
+
+	"code.google.com/p/go.crypto/bcrypt"
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
 	"github.com/martini-contrib/sessionauth"
 	"github.com/martini-contrib/sessions"
+
+	"fmt"
 	"log"
 )
 
 var dbSession *rethink.Session
 
 func init() {
-
 	var dbError error
 	dbSession, dbError = rethink.Connect(rethink.ConnectOpts{
 		Address:  "localhost:28015",
@@ -41,9 +42,10 @@ func init() {
 		rethink.Table("user").Insert(me).RunWrite(dbSession)
 		return
 	}
-	//row.Scan(&me)
-	//todo := Todo{UserId: me.UniqueId().(string), Body: "Finish todo app.", Completed: false}
-	//rethink.Table("todo").Insert(todo).RunWrite(dbSession)
+}
+
+func indexHandler(r render.Render) {
+	r.HTML(200, "index", nil)
 }
 
 func main() {

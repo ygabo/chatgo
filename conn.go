@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"github.com/gorilla/websocket"
+	"github.com/martini-contrib/render"
 	"github.com/martini-contrib/sessionauth"
 	"net/http"
 	"time"
@@ -53,6 +54,10 @@ var connMap map[string]*connection
 
 func init() {
 	connMap = make(map[string]*connection)
+}
+
+func getHub(r render.Render) {
+	r.HTML(200, "room", nil)
 }
 
 // readPump pumps messages from the websocket connection to the hub.

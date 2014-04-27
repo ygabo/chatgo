@@ -64,8 +64,7 @@
 			});
 		};
 
-		$scope.send = function() {
-			console.log("sendddd")
+		$scope.send = function() { 
 			conn.send(JSON.stringify({
   				hub_id: "default",
   				body: $scope.msg
