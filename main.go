@@ -67,11 +67,13 @@ func main() {
 	sessionauth.RedirectParam = "next"
 
 	m.Get("/", indexHandler)
-	m.Get("/login", getLoginHandler)
-	m.Get("/register", getRegisterHandler)
+	m.Get("/login", getLoginPage)
+	m.Get("/edit", getEditPage)
+	m.Get("/register", getRegisterPage)
 	m.Get("/logout", sessionauth.LoginRequired, logoutHandler)
 	m.Post("/login", binding.Bind(User{}), postLoginHandler)
 	m.Post("/register", binding.Bind(User{}), postRegisterHandler)
+	m.Post("/edit", sessionauth.LoginRequired, binding.Bind(User{}), postEditHandler)
 
 	m.Get("/room", sessionauth.LoginRequired, wsHandler)
 	m.Get("/hub", sessionauth.LoginRequired, getHub)

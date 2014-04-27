@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <h2>Edit Profile</h2>
+    <form method="POST">
+      #{.Email}# <br /><br />
+      <input type="hidden" value=#{.Email}# name="email" />
+      #{if .Username }#
+      	<input type="text" placeholder="Screen Name" value="#{.Username}#" name="username" /><br />
+      #{else}#
+      	<input type="text" placeholder="Screen Name" value=""  name="username" /><br />
+      #{end}#
+      <input type="password" placeholder="Old Password" name="oldpassword" /><br />
+      <input type="password" placeholder="New Password" name="newpassword" /><br />
+      <input type="password" placeholder="Confirm New Password" name="confirmnewpassword" /><br />
+      <button>Save</button>
+    </form>
+  </body>
+</html>

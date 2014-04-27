@@ -20,13 +20,14 @@ var (
 	INDEX_PAGE    = "/"
 	LOGIN_PAGE    = "login"
 	REGISTER_PAGE = "register"
+	EDIT_PAGE     = "edit"
 )
 
 type User struct {
 	Id            string    `form:"-" gorethink:"id,omitempty"`
 	Email         string    `form:"email" gorethink:"email"`
 	Password      string    `form:"password" gorethink:"password"`
-	Username      string    `form:"-" gorethink:"username,omitempty"`
+	Username      string    `form:"username" gorethink:"username,omitempty"`
 	Created       time.Time `form:"-" gorethink:"-"`
 	authenticated bool      `form:"-" gorethink:"-"`
 }
@@ -77,7 +78,11 @@ func (u *User) GetById(id interface{}) error {
 	return nil
 }
 
-func getLoginHandler(user sessionauth.User, r render.Render) {
+//-----------------------------------------------------------------------------
+// HANDLERS
+//-----------------------------------------------------------------------------
+
+func getLoginPage(user sessionauth.User, r render.Render) {
 	if user.IsAuthenticated() {
 		r.Redirect(INDEX_PAGE)
 		return
@@ -90,12 +95,78 @@ func logoutHandler(session sessions.Session, user sessionauth.User, r render.Ren
 	r.Redirect(INDEX_PAGE)
 }
 
-func getRegisterHandler(user sessionauth.User, r render.Render) {
+func getRegisterPage(user sessionauth.User, r render.Render) {
 	if user.IsAuthenticated() {
 		r.Redirect(INDEX_PAGE)
 		return
 	}
 	r.HTML(200, REGISTER_PAGE, nil)
+}
+
+func getEditPage(user sessionauth.User, r render.Render) {
+	r.HTML(200, EDIT_PAGE, user.(*User))
+}
+
+func postEditHandler(user sessionauth.User, editUser User, r render.Render, req *http.Request) {
+	var userInDb User
+	query := rethink.Table("user").Filter(rethink.Row.Field("email").Eq(editUser.Email))
+	row, err := query.RunRow(dbSession)
+	changed := false
+
+	if err == nil && !row.IsNil() {
+		if err := row.Scan(&userInDb); err != nil {
+			r.Redirect(EDIT_PAGE)
+			return
+		}
+	} else {
+		fmt.Println(err)
+		r.Redirect(EDIT_PAGE)
+		return
+	}
+
+	oldPass := req.PostForm.Get("oldpassword")
+	newPass := req.PostForm.Get("newpassword")
+	confirmNewPass := req.PostForm.Get("confirmnewpassword")
+	if newPass != "" && oldPass != "" {
+		// check if old password is correct
+		oldPassErr := bcrypt.CompareHashAndPassword([]byte(userInDb.Password), []byte(oldPass))
+		if oldPassErr != nil {
+			fmt.Println("Wrong password.")
+			r.Redirect(EDIT_PAGE)
+			return
+		}
+
+		// Try to compare new passwords between each other
+		pass1Hash, _ := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
+		passErr := bcrypt.CompareHashAndPassword(pass1Hash, []byte(confirmNewPass))
+		if passErr != nil {
+			fmt.Println("New passwords don't match")
+			r.Redirect(EDIT_PAGE)
+			return
+		}
+
+		// All good save new password
+		userInDb.Password = string(pass1Hash)
+		changed = true
+	} else if newPass != "" && oldPass == "" {
+		fmt.Println("Need old password to confirm edit.")
+		r.Redirect(EDIT_PAGE)
+		return
+	}
+
+	// TODO, validate these
+	// If there's a new username, edit it
+	if editUser.Username != "" && userInDb.Username != editUser.Username {
+		userInDb.Username = editUser.Username
+		changed = true
+	}
+
+	// Save user info in the db if something changed
+	if changed {
+		rethink.Table("user").Update(userInDb).RunWrite(dbSession)
+	}
+	fmt.Println("Edit finished, redirecting...")
+	r.Redirect(EDIT_PAGE)
 }
 
 func postRegisterHandler(session sessions.Session, newUser User, r render.Render, req *http.Request) {
