@@ -11,12 +11,13 @@ import (
 )
 
 type User struct {
-	Id            string `form:"-" gorethink:"id,omitempty"`
-	Email         string `form:"email" gorethink:"email"`
-	Password      string `form:"password" gorethink:"password"`
-	Username      string `form:"-" gorethink:"username,omitempty"`
-	Created       time.Time
-	authenticated bool `form:"-" gorethink:"-"`
+	Id            string          `form:"-" gorethink:"id,omitempty"`
+	Email         string          `form:"email" gorethink:"email"`
+	Password      string          `form:"password" gorethink:"password"`
+	Username      string          `form:"-" gorethink:"username,omitempty"`
+	Hubs          map[string]bool `form:"-" gorethink:"-"`
+	Created       time.Time       `form:"-" gorethink:"-"`
+	authenticated bool            `form:"-" gorethink:"-"`
 }
 
 // GetAnonymousUser should generate an anonymous user model

@@ -123,37 +123,3 @@ func postLoginHandler(session sessions.Session, userLoggingIn User, r render.Ren
 func getHub(r render.Render) {
 	r.HTML(200, "room", nil)
 }
-
-func sendAll(msg []byte) {
-	for conn := range connections {
-		if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-			delete(connections, conn)
-			conn.Close()
-		}
-	}
-}
-
-func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
-	// Taken from gorilla's website
-	conn, err := websocket.Upgrade(w, r, nil, 1024, 1024)
-	if _, ok := err.(websocket.HandshakeError); ok {
-		return
-	} else if err != nil {
-		return
-	}
-
-	fmt.Println("hello")
-	connections[conn] = true
-
-	for {
-		// Blocks until a message is read
-		_, msg, err := conn.ReadMessage()
-		if err != nil {
-			delete(connections, conn)
-			conn.Close()
-			return
-		}
-		log.Println(string(msg))
-		sendAll(msg)
-	}
-}

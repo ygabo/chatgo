@@ -9,7 +9,6 @@ import (
 	"fmt"
 	rethink "github.com/dancannon/gorethink"
 	"github.com/go-martini/martini"
-	"github.com/gorilla/websocket"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
 	"github.com/martini-contrib/sessionauth"
@@ -18,10 +17,8 @@ import (
 )
 
 var dbSession *rethink.Session
-var connections map[*websocket.Conn]bool
 
 func init() {
-	connections = make(map[*websocket.Conn]bool)
 
 	var dbError error
 	dbSession, dbError = rethink.Connect(rethink.ConnectOpts{
