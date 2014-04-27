@@ -47,6 +47,13 @@ type messageFrom struct {
 	body  string `json:"body"`
 }
 
+// connMap maps the userIDs to the websocket connection
+var connMap map[string]*connection
+
+func init() {
+	connMap = make(map[string]*connection)
+}
+
 // readPump pumps messages from the websocket connection to the hub.
 func (c *connection) readPump() {
 	defer func() {
