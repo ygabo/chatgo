@@ -20,11 +20,13 @@ type hub struct {
 	unregister chan *connection
 }
 
-var hubMap map[string]*hub // maps hub IDs to the actual hub objects
+var hubMap map[string]*hub             // maps hub IDs to the actual hub objects
+var userMap map[string]map[string]bool // each user has a collection of hubs
 var h *hub
 
 func init() {
 	hubMap = make(map[string]*hub)
+	userMap = make(map[string]map[string]bool)
 	h = newHub()
 
 	hubMap["default"] = h

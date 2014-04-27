@@ -62,8 +62,10 @@ func (c *connection) readPump() {
 		if err != nil {
 			break
 		}
-		// send the message to the proper hub
-		if myHubs[msg.hubID] {
+		// Send the message to the proper hub
+		// Check if user has is part of the hub first.
+		// Then send the message to the hub.
+		if userMap[c.userID][msg.hubID] {
 			hubMap[msg.hubID].broadcast <- msg
 		}
 	}
@@ -76,6 +78,8 @@ func (c *connection) write(mt int, payload []byte) error {
 }
 
 // writePump pumps messages from the hub to the websocket connection.
+// this doesn't care about hubIDs and let frontend handle displaying
+// the message in the proper hub. (hub_id is part of the message sent to FE)
 func (c *connection) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
@@ -112,7 +116,9 @@ func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 	}
 
 	c := &connection{userID: userID, send: make(chan []byte, 256), ws: ws}
-	hubMap["default"].register <- c
+
+	userMap[userID]["default"] = true // add default hub into user's hubs
+	hubMap["default"].register <- c   // register the user in the default hub
 	go c.writePump()
 	c.readPump()
 }
