@@ -44,8 +44,8 @@ func init() {
 	}
 }
 
-func indexHandler(r render.Render) {
-	r.HTML(200, "index", nil)
+func indexHandler(user sessionauth.User, r render.Render) {
+	r.HTML(200, "index", user.(*User))
 }
 
 func main() {

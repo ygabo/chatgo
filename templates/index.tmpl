@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html>
   <body>
-    <p>This is the Martini-Sessionauth example</p>
-
-    <a href="/logout">Logout</a><br/>
-
-    <a href="/login">Login</a><br/>
-
-    <a href="/register">Register</a><br/>
-
+  	<h1>ChatGo</h1>
+    #{if .Id }#
+    <p>Welcome, #{.Username}#<br/></p>
     <a href="/hub">Chat</a><br/>
+    <a href="/edit">Profile</a><br/>
+    <a href="/logout">Logout</a><br/>
+    #{else}#
+    <p>Welcome to ChatGo</p>
+    <a href="/login">Login</a><br/>
+    <a href="/register">Register</a><br/>
+    #{end}#
+
   </body>
 </html>
