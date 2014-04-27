@@ -57,7 +57,13 @@ func init() {
 // readPump pumps messages from the websocket connection to the hub.
 func (c *connection) readPump() {
 	defer func() {
-		h.unregister <- c
+		// if this conn is closed, user is done
+		// unregister from all its hubs, clean the maps
+		for userHub := range userHubMap[c.userID] {
+			hubMap[userHub].unregister <- c
+		}
+		delete(userHubMap, c.userID)
+		delete(connMap, c.userID)
 		c.ws.Close()
 	}()
 	c.ws.SetReadLimit(maxMessageSize)
@@ -72,7 +78,7 @@ func (c *connection) readPump() {
 		// Send the message to the proper hub
 		// Check if user has is part of the hub first.
 		// Then send the message to the hub.
-		if userMap[c.userID][msg.hubID] {
+		if userHubMa[c.userID][msg.hubID] {
 			hubMap[msg.hubID].broadcast <- msg
 		}
 	}
@@ -124,8 +130,9 @@ func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 
 	c := &connection{userID: userID, send: make(chan []byte, 256), ws: ws}
 
-	userMap[userID]["default"] = true // add default hub into user's hubs
-	hubMap["default"].register <- c   // register the user in the default hub
+	connMap[userID] = c                  // remember user's connection
+	userHubMap[userID]["default"] = true // add default hub into user's hubs
+	hubMap["default"].register <- c      // register the user in the default hub
 	go c.writePump()
 	c.readPump()
 }

@@ -20,13 +20,13 @@ type hub struct {
 	unregister chan *connection
 }
 
-var hubMap map[string]*hub             // maps hub IDs to the actual hub objects
-var userMap map[string]map[string]bool // each user has a collection of hubs
-var h *hub
+var hubMap map[string]*hub                // maps hub IDs to the actual hub objects
+var userHubMap map[string]map[string]bool // each user has a collection of hubs
+var h *hub                                // h to initialize the default hub everyone connects to first
 
 func init() {
 	hubMap = make(map[string]*hub)
-	userMap = make(map[string]map[string]bool)
+	userHubMap = make(map[string]map[string]bool)
 	h = newHub()
 
 	hubMap["default"] = h
@@ -50,6 +50,8 @@ func (h *hub) run() {
 		case c := <-h.unregister:
 			delete(h.connections, c)
 			close(c.send)
+			// TODO close down hub if no connections
+			// unless it's default
 		case m := <-h.broadcast:
 			for c := range h.connections {
 				select {
