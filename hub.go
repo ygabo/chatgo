@@ -27,19 +27,25 @@ var h *hub                                // h to initialize the default hub eve
 func init() {
 	hubMap = make(map[string]*hub)
 	userHubMap = make(map[string]map[string]bool)
-	h = newHub()
+	h = newHub(nil)
 	hubMap["default"] = h
 
 	go h.run()
 }
 
-func newHub() *hub {
-	return &hub{
+// newHub return's a new hub object
+// It takes in a connection that will be inserted into the hub
+func newHub(con *connection) *hub {
+	h := hub{
 		broadcast:   make(chan []byte),
 		register:    make(chan *connection),
 		unregister:  make(chan *connection),
 		connections: make(map[*connection]bool),
 	}
+	if con != nil {
+		h.connections[con] = true
+	}
+	return &h
 }
 
 func (h *hub) run() {

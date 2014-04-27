@@ -149,14 +149,14 @@ func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 	}
 	userHubMap[userID]["default"] = true
 
-	// default hub isn't there, initialize firt
+	// default hub isn't there, initialize first
 	if defaultHub := hubMap["default"]; defaultHub == nil {
-		hubMap["default"] = newHub()
+		hubMap["default"] = newHub(c) // pass the connection to insert initially
 		go hubMap["default"].run()
+	} else {
+		// register the user in the default hub
+		hubMap["default"].register <- c
 	}
-
-	// register the user in the default hub
-	hubMap["default"].register <- c
 
 	go c.writePump()
 	c.readPump()
