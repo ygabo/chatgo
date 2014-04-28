@@ -70,10 +70,10 @@ func (c *connection) readPump() {
 		fmt.Println("Conn closed", c.userID)
 		// if this conn is closed, user is done
 		// unregister from all its hubs, clean the maps
-		for u := range userHubMap[c.userID] {
-			hubMap[u].unregister <- c
+		for u := range h.userHubMap[c.userID] {
+			h.hubMap[u].unregister <- c
 		}
-		delete(userHubMap, c.userID)
+		delete(h.userHubMap, c.userID)
 		delete(connMap, c.userID)
 		c.ws.Close()
 	}()
@@ -92,8 +92,8 @@ func (c *connection) readPump() {
 		// Send the message to the proper hub
 		// Check if user is part of the hub first.
 		// Then send the message to the hub.
-		if userHubMap[c.userID][msg.HubID] {
-			hubMap[msg.HubID].broadcast <- []byte(msg.Body)
+		if h.userHubMap[c.userID][msg.HubID] {
+			h.hubMap[msg.HubID].broadcast <- []byte(msg.Body)
 		}
 	}
 }
@@ -152,19 +152,20 @@ func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 	c := &connection{userID: userID, send: make(chan []byte, 256), ws: ws}
 	connMap[userID] = c // remember user's connection
 
-	// add default hub into user's hubs when first connecting
-	if m := userHubMap[userID]; m == nil {
-		userHubMap[userID] = make(map[string]bool)
+	if h == nil {
+		fmt.Println("h is nil")
 	}
-	userHubMap[userID]["default"] = true
+	// add default hub into user's hubs when first connecting
+	if m := h.userHubMap[userID]; m == nil {
+		h.userHubMap[userID] = make(map[string]bool)
+	}
+	h.userHubMap[userID]["default"] = true
 
-	// default hub isn't there, initialize first
-	if defaultHub := hubMap["default"]; defaultHub == nil {
-		hubMap["default"] = newHub(c) // pass the connection to insert initially
-		go hubMap["default"].run()
+	if h.defaultHub == nil {
+		h.defaultHub = newHub("default", c)
+		go h.defaultHub.run()
 	} else {
-		// register the user in the default hub
-		hubMap["default"].register <- c
+		h.defaultHub.register <- c
 	}
 
 	go c.writePump()

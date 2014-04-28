@@ -7,6 +7,8 @@ package main
 // hub maintains the set of active connections and broadcasts messages to the
 // connections.
 type hub struct {
+	// Name of the hub
+	Name string
 	// Registered connections.
 	connections map[*connection]bool
 
@@ -20,32 +22,46 @@ type hub struct {
 	unregister chan *connection
 }
 
-var hubMap map[string]*hub                // maps hub IDs to the actual hub objects
-var userHubMap map[string]map[string]bool // each user has a collection of hubs
-var h *hub                                // h to initialize the default hub everyone connects to first
+type hubManager struct {
+	hubMap     map[string]*hub            // maps hub IDs to the actual hub objects
+	userHubMap map[string]map[string]bool // each user has a collection of hubs
+	defaultHub *hub                       // default hub everyone connects to first
+}
+
+var h *hubManager
 
 func init() {
-	hubMap = make(map[string]*hub)
-	userHubMap = make(map[string]map[string]bool)
-	h = newHub(nil)
-	hubMap["default"] = h
+	h = &hubManager{
+		hubMap:     make(map[string]*hub),
+		userHubMap: make(map[string]map[string]bool),
+		defaultHub: newHub("default", nil),
+	}
+	h.hubMap[h.defaultHub.Name] = h.defaultHub
 
-	go h.run()
+	go h.defaultHub.run()
 }
 
 // newHub return's a new hub object
 // It takes in a connection that will be inserted into the hub
-func newHub(con *connection) *hub {
-	h := hub{
+func newHub(hubName string, con *connection) *hub {
+	newH := &hub{
+		Name:        hubName,
 		broadcast:   make(chan []byte),
 		register:    make(chan *connection),
 		unregister:  make(chan *connection),
 		connections: make(map[*connection]bool),
 	}
-	if con != nil {
-		h.connections[con] = true
+
+	// TODO, duplicates
+	// register me in the hubmap
+	if h != nil {
+		h.hubMap[hubName] = newH
 	}
-	return &h
+
+	if con != nil {
+		newH.connections[con] = true
+	}
+	return newH
 }
 
 func (h *hub) run() {
