@@ -3,15 +3,19 @@
   <body>
   	<h1>ChatGo</h1>
     #{if .Id }#
-    <p>Welcome, #{.Username}#<br/></p>
-    <a href="/hub">Chat</a><br/>
-    <a href="/edit">Profile</a><br/>
-    <a href="/logout">Logout</a><br/>
-    #{else}#
-    <p>Welcome to ChatGo</p>
-    <a href="/login">Login</a><br/>
-    <a href="/register">Register</a><br/>
-    #{end}#
+    #{if .Username}#
+	    <p>Welcome, #{.Username}#<br/></p>
+	#{else }#
+	    <p>Welcome, #{.Email}# (create a  <a href="/edit">username</a>!)<br/></p>
+	#{end}#
+	    <a href="/hub">Chat</a><br/>
+	    <a href="/edit">Profile</a><br/>
+	    <a href="/logout">Logout</a><br/>
+	#{else}#
+	    <p>Welcome to ChatGo</p>
+	    <a href="/login">Login</a><br/>
+	    <a href="/register">Register</a><br/>
+	#{end}#
 
   </body>
 </html>
