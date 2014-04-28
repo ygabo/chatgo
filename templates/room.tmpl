@@ -57,6 +57,9 @@
 			})
 		};
 
+		// TODO: parse the incoming msg
+		// It should have a hub ID to append he message to.
+		// It should have the sender name as well to display too.
 		// called when a message is received from the server
 		conn.onmessage = function(e){
 			$scope.$apply(function(){
@@ -64,6 +67,8 @@
 			});
 		};
 
+		// TODO: hub resource, to diff against different hubs
+		// Send to ws and properly input the correct hub ID.
 		$scope.send = function() { 
 			conn.send(JSON.stringify({
   				hub_id: "default",
