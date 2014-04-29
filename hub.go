@@ -7,8 +7,13 @@ package main
 // hub maintains the set of active connections and broadcasts messages to the
 // connections.
 type hub struct {
+
+	// ID of hub
+	HubID string `form:"-" gorethink:"id,omitempty""`
+
 	// Name of the hub
-	Name string
+	HubName string `form:"name" gorethink:"name"`
+
 	// Registered connections.
 	connections map[*connection]bool
 
@@ -36,7 +41,7 @@ func init() {
 		userHubMap: make(map[string]map[string]bool),
 		defaultHub: newHub("default", nil),
 	}
-	h.hubMap[h.defaultHub.Name] = h.defaultHub
+	h.hubMap[h.defaultHub.HubName] = h.defaultHub
 
 	go h.defaultHub.run()
 }
