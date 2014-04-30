@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
 	rethink "github.com/dancannon/gorethink"
 
@@ -21,26 +22,14 @@ import (
 var dbSession *rethink.Session
 
 func init() {
-	var dbError error
+	dbAddress := os.Getenv("RETHINKDB_ADDRESS")
+	dbName := os.Getenv("RETHINK_TODO_DB")
+
 	dbSession, dbError = rethink.Connect(rethink.ConnectOpts{
-		Address:  "localhost:28015",
-		Database: "todo"})
+		Address:  dbAddress,
+		Database: dbName})
 	if dbError != nil {
 		log.Fatalln(dbError.Error())
-	}
-
-	// Testing purposes: query myself.
-	me := User{Email: "yelnil@example.com"}
-	hpass, _ := bcrypt.GenerateFromPassword([]byte("qwe"), bcrypt.DefaultCost)
-	me.Password = string(hpass)
-	row, err := rethink.Table("user").Filter(rethink.Row.Field("email").Eq(me.Email)).RunRow(dbSession)
-	if err != nil {
-		fmt.Println(err)
-	}
-	// I don't exist, insert me.
-	if row.IsNil() {
-		rethink.Table("user").Insert(me).RunWrite(dbSession)
-		return
 	}
 }
 

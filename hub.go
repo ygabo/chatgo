@@ -59,6 +59,7 @@ func newHub(hubName string, con *connection) *hub {
 
 	// TODO, duplicates
 	// register me in the hubmap
+	// insert to DB
 	if h != nil {
 		h.hubMap[hubName] = newH
 	}
@@ -74,11 +75,13 @@ func (h *hub) run() {
 		select {
 		case c := <-h.register:
 			h.connections[c] = true
+			// add to db
 		case c := <-h.unregister:
 			delete(h.connections, c)
 			close(c.send)
 			// TODO close down hub if no connections
 			// unless it's default hub
+			// remove from db
 		case m := <-h.broadcast:
 			for c := range h.connections {
 				select {

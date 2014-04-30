@@ -41,17 +41,12 @@ func GenerateAnonymousUser() sessionauth.User {
 // Login will preform any actions that are required to make a user model
 // officially authenticated.
 func (u *User) Login() {
-	// Update last login time
-	// Add to logged-in user's list
-	// etc ...
 	u.authenticated = true
 }
 
 // Logout will preform any actions that are required to completely
 // logout a user.
 func (u *User) Logout() {
-	// Remove from logged-in user's list
-	// etc ...
 	u.authenticated = false
 }
 
