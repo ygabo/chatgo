@@ -10,8 +10,6 @@ import (
 	"os"
 
 	rethink "github.com/dancannon/gorethink"
-
-	"code.google.com/p/go.crypto/bcrypt"
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
@@ -25,6 +23,10 @@ func init() {
 	dbAddress := os.Getenv("RETHINKDB_ADDRESS")
 	dbName := os.Getenv("RETHINK_TODO_DB")
 
+	fmt.Println("Connecting to rethinkdb at:", dbAddress)
+	fmt.Println("Database name:", dbName)
+
+	var dbError error
 	dbSession, dbError = rethink.Connect(rethink.ConnectOpts{
 		Address:  dbAddress,
 		Database: dbName})
