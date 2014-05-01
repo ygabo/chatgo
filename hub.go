@@ -50,7 +50,7 @@ func init() {
 // It takes in a connection that will be inserted into the hub
 func newHub(hubName string, con *connection) *hub {
 	newH := &hub{
-		Name:        hubName,
+		HubName:     hubName,
 		broadcast:   make(chan []byte),
 		register:    make(chan *connection),
 		unregister:  make(chan *connection),
