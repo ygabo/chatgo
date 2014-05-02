@@ -41,8 +41,9 @@ func init() {
 		fmt.Println("row nil")
 		err = rethink.Table("hub").Insert(h.hubMap).RunWrite(dbSession)
 	}
+
 	if err != nil {
-		fmt.Println("Default insert error,", err)
+		fmt.Println("Default insert error,", err, " -- Still running the default hub.")
 	}
 
 	go h.defaultHub.run()
@@ -60,8 +61,8 @@ func newHub(hubName string, con *connection) *hub {
 	}
 
 	// register me in the hubmap
-	if newH != nil {
-		newH.hubMap[hubName] = newH
+	if h != nil {
+		h.hubMap[hubName] = newH
 	}
 
 	query := rethink.Table("hub").Filter(rethink.Row.Field("name").Eq(hubName))
