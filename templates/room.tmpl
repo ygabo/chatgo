@@ -56,13 +56,14 @@
 			})
 		};
 
-		// TODO: parse the incoming msg
 		// It should have a hub ID to append he message to.
-		// It should have the sender name as well to display too.
 		// called when a message is received from the server
 		conn.onmessage = function(e){
 			$scope.$apply(function(){
 				var data = JSON.parse(e.data)
+				if ( !data.from ) {
+					data.from = "anon" // Todo, do better at anon names
+				}
 				var msg = "[" + data.from + "]: " + data.body
 				$scope.messages.push(msg);
 			});
