@@ -16,7 +16,7 @@ import (
 type hub struct {
 	HubID    string            `form:"-" gorethink:"id,omitempty""`
 	HubName  string            `form:"name" gorethink:"name"`
-	HubUsers map[string]string `form:"-" gorethink:"users"`
+	HubUsers map[string]string `form:"-" gorethink:"-"`
 
 	connections map[*connection]bool `form:"-" gorethink:"-"`
 	broadcast   chan []byte          `form:"-" gorethink:"-"`
@@ -24,6 +24,14 @@ type hub struct {
 	unregister  chan *connection     `form:"-" gorethink:"-"`
 }
 
+// hubuser represents the relationship between users and hubs
+type hubUser struct {
+	HubID    string `gorethink:"hub_id"`
+	UserID   string `gorethink:"user_id"`
+	UserName string `gorethink:"user_name"`
+}
+
+// hubManger is the in-memory hub manager
 type hubManager struct {
 	hubMap     map[string]*hub            // maps hub IDs to the actual hub objects
 	userHubMap map[string]map[string]bool // each user has a collection of hubs
@@ -58,6 +66,14 @@ func init() {
 		fmt.Println("Default insert error,", err, " -- Still running the default hub.")
 	}
 
+	// create hub_user index
+	_, err = r.Table("hub_user").IndexCreateFunc("hub_user_id", func(row r.RqlTerm) interface{} {
+		return []interface{}{row.Field("hub_id"), row.Field("user_id")}
+	}).Run(dbSession)
+	fmt.Println("create index,", err)
+	_, err = r.Table("hub_user").IndexWait().Run(dbSession)
+
+	fmt.Println("wait index,", err)
 	go h.defaultHub.run()
 }
 
@@ -106,18 +122,30 @@ func (hb *hub) run() {
 			hb.connections[c] = true
 			hb.HubUsers[c.userID] = c.userName
 			print, _ := json.MarshalIndent(hb, "", "  ")
-			fmt.Println(string(print))
-			r.Table("hub").Update(hb).RunWrite(dbSession)
+			hu := &hubUser{HubID: hb.HubID, UserID: c.userID}
+			_, err := r.Table("hub_user").Insert(hu).RunWrite(dbSession)
+
+			fmt.Println(string(print), err)
 		case c := <-hb.unregister:
 			delete(hb.connections, c)
 			delete(hb.HubUsers, c.userID)
-			close(c.send)
-			print, _ := json.MarshalIndent(hb, "", "  ")
-			fmt.Println(string(print))
+			// close(c.send)
+			// print, _ := json.MarshalIndent(hb, "", "  ")
+			// fmt.Println(string(print))
 			// Removing doesn't work. TODO
-			q := r.Table("hub").Get(hb.HubID).Replace(r.Row.Without(c.userID))
+			// q := r.Table("hub").Get(hb.HubID).Replace(r.Row.Without(c.userID))
+			// fmt.Println(q)
+			// _, err := q.RunWrite(dbSession)
+			// // var hh hub
+			// userF := r.Row.Field("user_id").Eq(c.userID)
+			// hubF := r.Row.Field("hub_id").Eq(hb.HubID)
+			q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID}).Delete()
+
 			fmt.Println(q)
 			_, err := q.RunWrite(dbSession)
+			// row.Scan(&hh)
+			// print, _ = json.MarshalIndent(hh, "", "  ")
+			// fmt.Println(string(print))
 			fmt.Println(err)
 		case m := <-hb.broadcast:
 			for c := range hb.connections {
