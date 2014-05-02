@@ -37,8 +37,8 @@ var upgrader = websocket.Upgrader{
 
 // connection is an middleman between the websocket connection and the hub.
 type connection struct {
-	// user associated with this connection
-	userID string
+	userID   string
+	userName string
 
 	// The websocket connection.
 	ws *websocket.Conn
@@ -76,6 +76,8 @@ func (c *connection) readPump() {
 		delete(h.userHubMap, c.userID)
 		delete(connMap, c.userID)
 		c.ws.Close()
+		// delete key from all
+		// r.db('db').table('user').replace(r.row.without('key'))
 	}()
 
 	c.ws.SetReadLimit(maxMessageSize)
@@ -135,7 +137,10 @@ func (c *connection) writePump() {
 // wsHandler - takes care of incomming chat connection requests
 // The user has to be logged in to get to this point
 func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
-	userID := user.UniqueId().(string)
+	currUser := user.(*User)
+	userID := currUser.Id
+	userName := currUser.Username
+
 	if userDuplicate := connMap[userID]; userDuplicate != nil {
 		return // user already has websocket connection
 	}
@@ -149,7 +154,7 @@ func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 		return
 	}
 
-	c := &connection{userID: userID, send: make(chan []byte, 256), ws: ws}
+	c := &connection{userID: userID, userName: userName, send: make(chan []byte, 256), ws: ws}
 	connMap[userID] = c // remember user's connection
 
 	if h == nil {

@@ -4,14 +4,19 @@
 
 package main
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+
+	r "github.com/dancannon/gorethink"
+)
 
 // hub maintains the set of active connections and broadcasts messages to the
 // connections.
 type hub struct {
-	HubID    string          `form:"-" gorethink:"id,omitempty""`
-	HubName  string          `form:"name" gorethink:"name"`
-	HubUsers map[string]bool `form:"-" gorethink:"users"`
+	HubID    string            `form:"-" gorethink:"id,omitempty""`
+	HubName  string            `form:"name" gorethink:"name"`
+	HubUsers map[string]string `form:"-" gorethink:"users"`
 
 	connections map[*connection]bool `form:"-" gorethink:"-"`
 	broadcast   chan []byte          `form:"-" gorethink:"-"`
@@ -35,11 +40,18 @@ func init() {
 	}
 	h.hubMap[h.defaultHub.HubName] = h.defaultHub
 
-	query := rethink.Table("hub").Filter(rethink.Row.Field("name").Eq("default"))
+	query := r.Table("hub").Filter(r.Row.Field("name").Eq("default"))
 	row, err := query.RunRow(dbSession)
-	if err == nil && row.IsNil() {
+	if row.IsNil() {
 		fmt.Println("row nil")
-		err = rethink.Table("hub").Insert(h.hubMap).RunWrite(dbSession)
+		_, err = r.Table("hub").Insert(h.defaultHub).RunWrite(dbSession)
+	} else {
+		var hubInDB hub
+		if scanErr := row.Scan(&hubInDB); scanErr != nil {
+			fmt.Println("Scan Error")
+		} else {
+			h.defaultHub.HubID = hubInDB.HubID
+		}
 	}
 
 	if err != nil {
@@ -54,6 +66,7 @@ func init() {
 func newHub(hubName string, con *connection) *hub {
 	newH := &hub{
 		HubName:     hubName,
+		HubUsers:    make(map[string]string),
 		broadcast:   make(chan []byte),
 		register:    make(chan *connection),
 		unregister:  make(chan *connection),
@@ -65,12 +78,13 @@ func newHub(hubName string, con *connection) *hub {
 		h.hubMap[hubName] = newH
 	}
 
-	query := rethink.Table("hub").Filter(rethink.Row.Field("name").Eq(hubName))
+	// Todo: Fix this when rethink can do uniques
+	query := r.Table("hub").Filter(r.Row.Field("name").Eq(hubName))
 	row, err := query.RunRow(dbSession)
 
 	if err == nil && row.IsNil() {
 		fmt.Println("row nil")
-		err = rethink.Table("hub").Insert(newH).RunWrite(dbSession)
+		_, err = r.Table("hub").Insert(newH).RunWrite(dbSession)
 	}
 
 	if err != nil {
@@ -85,27 +99,40 @@ func newHub(hubName string, con *connection) *hub {
 	return newH
 }
 
-func (h *hub) run() {
+func (hb *hub) run() {
 	for {
 		select {
-		case c := <-h.register:
-			h.connections[c] = true
-			// add to db
-		case c := <-h.unregister:
-			delete(h.connections, c)
+		case c := <-hb.register:
+			hb.connections[c] = true
+			hb.HubUsers[c.userID] = c.userName
+			print, _ := json.MarshalIndent(hb, "", "  ")
+			fmt.Println(string(print))
+			r.Table("hub").Update(hb).RunWrite(dbSession)
+		case c := <-hb.unregister:
+			delete(hb.connections, c)
+			delete(hb.HubUsers, c.userID)
 			close(c.send)
-			// TODO close down hub if no connections
-			// unless it's default hub
-			// remove from db
-		case m := <-h.broadcast:
-			for c := range h.connections {
+			print, _ := json.MarshalIndent(hb, "", "  ")
+			fmt.Println(string(print))
+			// Removing doesn't work. TODO
+			q := r.Table("hub").Get(hb.HubID).Replace(r.Row.Without(c.userID))
+			fmt.Println(q)
+			_, err := q.RunWrite(dbSession)
+			fmt.Println(err)
+		case m := <-hb.broadcast:
+			for c := range hb.connections {
 				select {
 				case c.send <- m:
 				default:
 					close(c.send)
-					delete(h.connections, c)
+					delete(hb.connections, c)
 				}
 			}
 		}
 	}
+}
+
+// userDisconnect removes the user from all the hubs
+func (hm *hubManager) userDisconnect(userID string) {
+
 }
