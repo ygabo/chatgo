@@ -129,24 +129,13 @@ func (hb *hub) run() {
 		case c := <-hb.unregister:
 			delete(hb.connections, c)
 			delete(hb.HubUsers, c.userID)
-			// close(c.send)
-			// print, _ := json.MarshalIndent(hb, "", "  ")
-			// fmt.Println(string(print))
-			// Removing doesn't work. TODO
-			// q := r.Table("hub").Get(hb.HubID).Replace(r.Row.Without(c.userID))
-			// fmt.Println(q)
-			// _, err := q.RunWrite(dbSession)
-			// // var hh hub
-			// userF := r.Row.Field("user_id").Eq(c.userID)
-			// hubF := r.Row.Field("hub_id").Eq(hb.HubID)
-			q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID}).Delete()
+			close(c.send)
 
-			fmt.Println(q)
+			q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID}).Delete()
 			_, err := q.RunWrite(dbSession)
-			// row.Scan(&hh)
-			// print, _ = json.MarshalIndent(hh, "", "  ")
-			// fmt.Println(string(print))
-			fmt.Println(err)
+			if err != nil {
+				fmt.Println(err)
+			}
 		case m := <-hb.broadcast:
 			for c := range hb.connections {
 				select {
