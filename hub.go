@@ -4,27 +4,19 @@
 
 package main
 
+import "fmt"
+
 // hub maintains the set of active connections and broadcasts messages to the
 // connections.
 type hub struct {
+	HubID    string          `form:"-" gorethink:"id,omitempty""`
+	HubName  string          `form:"name" gorethink:"name"`
+	HubUsers map[string]bool `form:"-" gorethink:"users"`
 
-	// ID of hub
-	HubID string `form:"-" gorethink:"id,omitempty""`
-
-	// Name of the hub
-	HubName string `form:"name" gorethink:"name"`
-
-	// Registered connections.
-	connections map[*connection]bool
-
-	// Inbound messages from the connections.
-	broadcast chan []byte
-
-	// Register requests from the connections.
-	register chan *connection
-
-	// Unregister requests from connections.
-	unregister chan *connection
+	connections map[*connection]bool `form:"-" gorethink:"-"`
+	broadcast   chan []byte          `form:"-" gorethink:"-"`
+	register    chan *connection     `form:"-" gorethink:"-"`
+	unregister  chan *connection     `form:"-" gorethink:"-"`
 }
 
 type hubManager struct {
@@ -43,6 +35,16 @@ func init() {
 	}
 	h.hubMap[h.defaultHub.HubName] = h.defaultHub
 
+	query := rethink.Table("hub").Filter(rethink.Row.Field("name").Eq("default"))
+	row, err := query.RunRow(dbSession)
+	if err == nil && row.IsNil() {
+		fmt.Println("row nil")
+		err = rethink.Table("hub").Insert(h.hubMap).RunWrite(dbSession)
+	}
+	if err != nil {
+		fmt.Println("Default insert error,", err)
+	}
+
 	go h.defaultHub.run()
 }
 
@@ -57,16 +59,28 @@ func newHub(hubName string, con *connection) *hub {
 		connections: make(map[*connection]bool),
 	}
 
-	// TODO, duplicates
 	// register me in the hubmap
-	// insert to DB
-	if h != nil {
-		h.hubMap[hubName] = newH
+	if newH != nil {
+		newH.hubMap[hubName] = newH
+	}
+
+	query := rethink.Table("hub").Filter(rethink.Row.Field("name").Eq(hubName))
+	row, err := query.RunRow(dbSession)
+
+	if err == nil && row.IsNil() {
+		fmt.Println("row nil")
+		err = rethink.Table("hub").Insert(newH).RunWrite(dbSession)
+	}
+
+	if err != nil {
+		fmt.Println("Error newHub", err)
+		return nil
 	}
 
 	if con != nil {
 		newH.connections[con] = true
 	}
+
 	return newH
 }
 

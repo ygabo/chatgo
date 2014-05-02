@@ -30,6 +30,9 @@ type User struct {
 	Username      string    `form:"username" gorethink:"username,omitempty"`
 	Created       time.Time `form:"-" gorethink:"-"`
 	authenticated bool      `form:"-" gorethink:"-"`
+
+	// chatgo specific, hubs user is in
+	Hubs map[string]bool `form:"-" gorethink:"hubs"`
 }
 
 // GetAnonymousUser should generate an anonymous user model
