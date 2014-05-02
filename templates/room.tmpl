@@ -14,9 +14,7 @@
 		<a href="/">Home</a>
 	</div>
 	<div id="chat">
-		<ul>
-			<li ng-repeat="m in messages track by $index">{{m}}</li>
-		</ul>
+		<div ng-repeat="m in messages track by $index">{{m}}</div>
 	</div>
 	<input type="text" placeholder="type here" ng-model="msg" ng-enter="send()">
 	<button class="btn btn-primary" ng-click="send()">Send</button>
@@ -64,7 +62,9 @@
 		// called when a message is received from the server
 		conn.onmessage = function(e){
 			$scope.$apply(function(){
-				$scope.messages.push(e.data);
+				var data = JSON.parse(e.data)
+				var msg = "[" + data.from + "]: " + data.body
+				$scope.messages.push(msg);
 			});
 		};
 

@@ -7,6 +7,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -50,6 +51,7 @@ type connection struct {
 type messageFrom struct {
 	HubID string `json:"hub_id"`
 	Body  string `json:"body"`
+	From  string `json:"from,omitempty"`
 }
 
 // connMap maps the userIDs to the websocket connection
@@ -65,9 +67,7 @@ func getHub(r render.Render) {
 
 // readPump pumps messages from the websocket connection to the hub.
 func (c *connection) readPump() {
-	fmt.Println("Started read pump:", c.userID)
 	defer func() {
-		fmt.Println("Conn closed", c.userID)
 		// if this conn is closed, user is done
 		// unregister from all its hubs, clean the maps
 		for u := range h.userHubMap[c.userID] {
@@ -76,26 +76,33 @@ func (c *connection) readPump() {
 		delete(h.userHubMap, c.userID)
 		delete(connMap, c.userID)
 		c.ws.Close()
-		// delete key from all
-		// r.db('db').table('user').replace(r.row.without('key'))
 	}()
 
 	c.ws.SetReadLimit(maxMessageSize)
 	c.ws.SetReadDeadline(time.Now().Add(pongWait))
 	c.ws.SetPongHandler(func(string) error { c.ws.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+
+	fmt.Println("Started read pump:", c.userID)
 	for {
 		msg := messageFrom{}
 		err := c.ws.ReadJSON(&msg)
-		fmt.Println(msg)
+		msg.From = c.userName
+
 		if err != nil {
 			fmt.Println("msg error: ", err)
 			break
 		}
+
 		// Send the message to the proper hub
 		// Check if user is part of the hub first.
 		// Then send the message to the hub.
 		if h.userHubMap[c.userID][msg.HubID] {
-			h.hubMap[msg.HubID].broadcast <- []byte(msg.Body)
+			b, err := json.Marshal(msg)
+			if err == nil {
+				h.hubMap[msg.HubID].broadcast <- b
+			} else {
+				fmt.Println("Error decoding message, ", err)
+			}
 		}
 	}
 }
@@ -154,7 +161,12 @@ func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 		return
 	}
 
-	c := &connection{userID: userID, userName: userName, send: make(chan []byte, 256), ws: ws}
+	c := &connection{
+		userID:   userID,
+		userName: userName,
+		send:     make(chan []byte, 256),
+		ws:       ws,
+	}
 	connMap[userID] = c // remember user's connection
 
 	if h == nil {

@@ -121,16 +121,19 @@ func (hb *hub) run() {
 		case c := <-hb.register:
 			hb.connections[c] = true
 			hb.HubUsers[c.userID] = c.userName
-			print, _ := json.MarshalIndent(hb, "", "  ")
-			hu := &hubUser{HubID: hb.HubID, UserID: c.userID}
+
+			// remember {hub, user} relationship
+			hu := &hubUser{HubID: hb.HubID, UserID: c.userID, UserName: c.userName}
 			_, err := r.Table("hub_user").Insert(hu).RunWrite(dbSession)
 
+			print, _ := json.MarshalIndent(hb, "", "  ")
 			fmt.Println(string(print), err)
 		case c := <-hb.unregister:
 			delete(hb.connections, c)
 			delete(hb.HubUsers, c.userID)
 			close(c.send)
 
+			// delete {hub, user} relationship
 			q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID}).Delete()
 			_, err := q.RunWrite(dbSession)
 			if err != nil {
@@ -143,6 +146,15 @@ func (hb *hub) run() {
 				default:
 					close(c.send)
 					delete(hb.connections, c)
+					delete(hb.HubUsers, c.userID)
+
+					// delete {hub, user} relationship
+					q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID})
+					q = q.Delete()
+					_, err := q.RunWrite(dbSession)
+					if err != nil {
+						fmt.Println(err)
+					}
 				}
 			}
 		}
