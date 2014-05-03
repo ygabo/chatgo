@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 
 	rethink "github.com/dancannon/gorethink"
 	"github.com/go-martini/martini"
@@ -20,6 +21,8 @@ import (
 var dbSession *rethink.Session
 
 func init() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	dbAddress := os.Getenv("RETHINKDB_ADDRESS")
 	dbName := os.Getenv("RETHINK_TODO_DB")
 
