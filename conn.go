@@ -70,10 +70,7 @@ func (c *connection) readPump() {
 	defer func() {
 		// if this conn is closed, user is done
 		// unregister from all its hubs, clean the maps
-		for u := range h.userHubMap[c.userID] {
-			h.hubMap[u].unregister <- c
-		}
-		delete(h.userHubMap, c.userID)
+		h.remEdge <- &hubConnMsg{Con: con}
 		delete(connMap, c.userID)
 		c.ws.Close()
 	}()
