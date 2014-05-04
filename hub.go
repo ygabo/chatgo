@@ -167,6 +167,21 @@ func (hb *hub) run() {
 	}
 }
 
+// Get user from the DB by id and populate it into 'u'
+func (hb *hub) GetById(id interface{}) error {
+
+	row, err := rethink.Table("hub").Get(id).RunRow(dbSession)
+	if err != nil {
+		return err
+	}
+	if !row.IsNil() {
+		if err := row.Scan(&hb); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // userDisconnect removes the user from all the hubs
 func (hm *hubManager) userDisconnect(userID string) {
 
@@ -237,8 +252,8 @@ func (hm *hubManager) insertEdge(u *User, h *hub) {
 	hm.EdgeList.User_to_hub[userID][hubID] = h
 }
 
-// removeEdge deletes a relationshipt between a user and a hub
-// nil hub means remove user from all hubs
+// removeEdge deletes a relationship between a user and a hub
+// nil hub means remove user from all his hubs
 func (hm *hubManager) removeEdge(u *User, h *hub) error {
 	if u == nil {
 		return errors.New("User is nil.")
@@ -255,7 +270,13 @@ func (hm *hubManager) removeEdge(u *User, h *hub) error {
 			delete(hm.EdgeList.Hub_to_user[hID], userID)
 			delete(hm.EdgeList.User_to_hub[userID], hID)
 		}
-
 	}
+}
 
+func (hm *hubManager) removeEdgeByIDs(userID string, hubID string) error {
+	u := User{}
+	hb := hub{}
+	u.GetById(userID)
+	hb.GetById(hubID)
+	hm.removeEdge(u, hb)
 }
