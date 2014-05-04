@@ -102,9 +102,7 @@ func (hb *hub) run() {
 	for {
 		select {
 		case c := <-hb.register:
-			hb.connections[c] = true
-
-			h.insertEdge(c, h)
+			h.insertEdge(c, hb)
 		case c := <-hb.unregister:
 			h.removeEdge(c, hb)
 		case m := <-hb.broadcast:
@@ -112,7 +110,7 @@ func (hb *hub) run() {
 				select {
 				case c.send <- m:
 				default:
-					h.removeEdge(u, c)
+					h.removeEdge(c, hb)
 				}
 			}
 		}
@@ -120,7 +118,7 @@ func (hb *hub) run() {
 }
 
 // Get hub from the DB by id and populate it into 'gb'
-// This is not a complete representation of hub since it
+// This is not a complete representation of hub, since it
 // will only have ID and name after querying. (no conns or anything)
 // The real hub is in h.hubMap[] which is an in-memory store
 func (hb *hub) GetById(id interface{}) error {
@@ -155,7 +153,7 @@ func (hb *hub) GetByName(hbName string) error {
 
 // userDisconnect removes the user from all the hubs
 func (hm *hubManager) userDisconnect(userID *string) {
-
+	hm.removeEdgeByIDs(userID, nil)
 }
 
 // getHubByID return the hub with the corresponding ID
@@ -256,13 +254,12 @@ func (hm *hubManager) removeEdge(c *connection, h *hub) error {
 
 // removeEdgeByIDs is a wrapper on removeEdge if you want to pass in the IDs
 func (hm *hubManager) removeEdgeByIDs(userID *string, hubID *string) error {
-	u := User{}
-	u.GetById(userID)
+	c := connMap[userID]
 
 	var hb *hub = nil
 	if hubID != nil {
 		hb = hm.hubMap[hubID]
 	}
 
-	hm.removeEdge(u, hb)
+	hm.removeEdge(c, hb)
 }
