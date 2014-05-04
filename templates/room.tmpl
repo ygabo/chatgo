@@ -2,27 +2,55 @@
 <head>
 	<title>ChatGo</title>
 	<style>
-	#chat {
-			height: 300px;
-			overflow: scroll;
-	}
+		body { 
+		    padding-top: 52px; 
+		    padding-bottom: 40px; 
+		}
+		#fromDiv {
+			padding-right:5px;
+			padding-left:0px;
+		}
+		.navbar-fixed-bottom {
+		    height: 37px; /* Whatever you want. */
+		}
 	</style>
+	<link rel="stylesheet" href="build/css/bootstrap.min.css">
+
 </head>
 <body ng-controller="MainCtl">
-	<div class="jumbotron">
-		<h1>My Chat</h1>
-		<a href="/">Home</a>
-	</div>
-	<div id="chat">
-		<div ng-repeat="m in messages track by $index">{{m}}</div>
-	</div>
-	<input type="text" placeholder="type here" ng-model="msg" ng-enter="send()">
-	<button class="btn btn-primary" ng-click="send()">Send</button>
+	<div class="navbar navbar-inverse navbar-fixed-top">
+		<div class="navbar-header">
+      		<a class="navbar-brand" href="/">ChatGo</a>
+      	</div>
+      	<ul class="nav navbar-nav">
+	        <li class="active"><a href="/">Away</a></li>
+	        <li><a href="/">Home</a></li>
+   		 </ul> 
+    </div>
 
+	<div style="padding:0px" glue-scroll ng-model="glued" >
+		<div style="padding:0px" ng-repeat="m in messages track by $index">
+			<div class="row">
+				<div id="fromDiv" align="right"class="col-xs-1">[{{m.from}}]: </div>
+				<div style="padding-left:0px" align="left" class="col-xs-11">{{m.body}}</div>
+			</div>
+		</div>
+		<div id="chatBottom"></div>
+	</div>
+	<div id="bottomBar" class="navbar-inverse navbar-fixed-bottom">
+		<div class="row">
+			<div class="col-xs-8"style="padding:2px;padding-left:18px;">
+				<input class="form-control" type="text" ng-model="msg" ng-enter="send()">
+			</div>
+			<div class="col-xs-1" style="padding-left:2px;padding-top:2px">
+				<button style="width:100%" class="btn btn-primary" ng-click="send()">Send</button>
+			</div>
+		</div>
+	</div>
 <script src="build/angular.js"></script>
 <script>
 	var app = angular.module("chat", []);
-
+	"use strict";
 	app.directive('ngEnter', function () {
 		return function (scope, element, attrs) {
 			element.bind("keydown keypress", function (event) {
@@ -41,10 +69,12 @@
 		$scope.messages = [];
 		$scope.defaultID = "77133889-76fb-41d0-8483-ca902f701417"
 		var conn = new WebSocket("ws://localhost:3000/room");
+		$scope.glued = true;
+
 		// called when the server closes the connection
 		conn.onclose = function(e) {
 			$scope.$apply(function(){
-				$scope.messages.push("[server]: disconnected");
+				$scope.messages.push({from:"server", body:"disconnected"});
 			});
 		};
 
@@ -52,7 +82,7 @@
 		conn.onopen = function(e) {
 			$scope.$apply(function(){
 				console.log("we here")
-				$scope.messages.push("[server]: connected");
+				$scope.messages.push({from:"server", body:"connected"});
 			})
 		};
 
@@ -65,21 +95,84 @@
 				if ( !data.from ) {
 					data.from = "anon" // Todo, do better at anon names
 				}
-				var msg = "[" + data.from + "]: " + data.body
-				$scope.messages.push(msg);
+				
+				$scope.messages.push(data);
 			});
 		};
 
 		// TODO: hub resource, to diff against different hubs
 		// Send to ws and properly input the correct hub ID.
-		$scope.send = function() { 
-			conn.send(JSON.stringify({
-  				hub_id: $scope.defaultID,
-  				body: $scope.msg
-			}));
-			$scope.msg = "";
+		$scope.send = function() {
+			if ($scope.msg) {
+				conn.send(JSON.stringify({
+	  				hub_id: $scope.defaultID,
+	  				body: $scope.msg
+				}));
+				$scope.msg = "";
+			}
 		}
 	}]);
+
+	//https://rawgit.com/Luegg/angularjs-scroll-glue/master/src/scrollglue.js
+	app.directive('glueScroll', function(){
+
+			function fakeNgModel(initValue){
+		        return {
+		            $setViewValue: function(value){
+		                this.$viewValue = value;
+		            },
+		            $viewValue: initValue
+		        };
+		    }
+	        return {
+	            priority: 1,
+	            require: ['ngModel'],
+	            restrict: 'A',
+	            link: function(scope, $el, attrs, ctrls){
+	                var el = $el[0], ngModel = ctrls[0] || fakeNgModel(false);
+	                console.log("EEEL")
+	                console.log(ctrls[0])
+	                console.log("dfdf")
+	                function scrollToBottom(){
+	                	console.log(el)
+	                    console.log( "scrollToBottom: " + 
+	                    			el.scrollTop + " " + 
+	                    			el.scrollHeight + " " + 
+	                    			el.clientHeight)
+
+	                    el.scrollTop = el.scrollHeight;
+											console.log( "after: " + 
+	                    			el.scrollTop + " " + 
+	                    			el.scrollHeight + " " + 
+	                    			el.clientHeight)
+											console.log(el)
+	                }
+
+	                function shouldActivateAutoScroll(){
+	                    // + 1 catches off by one errors in chrome
+	                    console.log("shouldActivateAutoScroll")
+	                    return el.scrollTop + el.clientHeight + 1 >= el.scrollHeight;
+	                }
+
+	                scope.$watch('messages', function(){
+	                		console.log("EYYYYYYY")
+	                    if(ngModel.$viewValue){
+	                        scrollToBottom();
+	                    }
+	                }, true); // true means check deep
+
+	                console.log("printing model")
+	                console.log(ngModel)
+
+	                console.log("printing done")
+	                $el.bind('scroll', function(){
+
+	                    console.log("bind scroll")
+	                    scope.$apply(ngModel.$setViewValue.bind(ngModel, shouldActivateAutoScroll));
+	                });
+	            }
+	        };
+	    });
 </script>
 </body>
 </html>
