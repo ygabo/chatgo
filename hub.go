@@ -14,9 +14,9 @@ import (
 // hub maintains the set of active connections and broadcasts messages to the
 // connections.
 type hub struct {
-	HubID    string            `form:"-" gorethink:"id,omitempty""`
-	HubName  string            `form:"name" gorethink:"name"`
-	HubUsers map[string]string `form:"-" gorethink:"-"`
+	HubID    string           `form:"-" gorethink:"id,omitempty""`
+	HubName  string           `form:"name" gorethink:"name"`
+	HubUsers map[string]*User `form:"-" gorethink:"-"`
 
 	connections map[*connection]bool `form:"-" gorethink:"-"`
 	broadcast   chan []byte          `form:"-" gorethink:"-"`
@@ -24,12 +24,12 @@ type hub struct {
 	unregister  chan *connection     `form:"-" gorethink:"-"`
 }
 
-// hubuser represents the relationship between users and hubs
-type hubUser struct {
-	HubID    string `gorethink:"hub_id"`
-	UserID   string `gorethink:"user_id"`
-	UserName string `gorethink:"user_name"`
-}
+// // hubuser represents the relationship between users and hubs
+// type hubUser struct {
+// 	HubID    string `gorethink:"hub_id"`
+// 	UserID   string `gorethink:"user_id"`
+// 	UserName string `gorethink:"user_name"`
+// }
 
 // hubManger is the in-memory hub manager
 type hubManager struct {
@@ -82,7 +82,7 @@ func init() {
 func newHub(hubName string, con *connection) *hub {
 	newH := &hub{
 		HubName:     hubName,
-		HubUsers:    make(map[string]string),
+		HubUsers:    make(map[*User]bool),
 		broadcast:   make(chan []byte),
 		register:    make(chan *connection),
 		unregister:  make(chan *connection),
@@ -134,11 +134,11 @@ func (hb *hub) run() {
 			close(c.send)
 
 			// delete {hub, user} relationship
-			q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID}).Delete()
-			_, err := q.RunWrite(dbSession)
-			if err != nil {
-				fmt.Println(err)
-			}
+			// q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID}).Delete()
+			// _, err := q.RunWrite(dbSession)
+			// if err != nil {
+			// 	fmt.Println(err)
+			// }
 		case m := <-hb.broadcast:
 			for c := range hb.connections {
 				select {
@@ -148,13 +148,13 @@ func (hb *hub) run() {
 					delete(hb.connections, c)
 					delete(hb.HubUsers, c.userID)
 
-					// delete {hub, user} relationship
-					q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID})
-					q = q.Delete()
-					_, err := q.RunWrite(dbSession)
-					if err != nil {
-						fmt.Println(err)
-					}
+					// // delete {hub, user} relationship
+					// q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID})
+					// q = q.Delete()
+					// _, err := q.RunWrite(dbSession)
+					// if err != nil {
+					// 	fmt.Println(err)
+					// }
 				}
 			}
 		}
