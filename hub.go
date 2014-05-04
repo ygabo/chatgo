@@ -33,7 +33,7 @@ type Edges struct {
 // hubManger is the in-memory hub manager
 type hubManager struct {
 	hubMap     map[string]*hub // maps hub IDs to the actual hub objects
-	EdgeList   *Edges          // represents edges between users and hubs
+	EdgeMap    *Edges          // represents edges between users and hubs
 	defaultHub *hub            // default hub everyone connects to first
 }
 
@@ -41,45 +41,29 @@ var h *hubManager
 
 func init() {
 	h = &hubManager{
-		hubMap: make(map[string]*hub),
-		// userHubMap: make(map[string]map[string]bool),
-		EdgeList:   Edges{},
+		hubMap:     make(map[string]*hub),
+		EdgeMap:    Edges{},
 		defaultHub: newHub("default", nil),
 	}
-	h.hubMap[h.defaultHub.HubName] = h.defaultHub
-
-	query := r.Table("hub").Filter(r.Row.Field("name").Eq("default"))
-	row, err := query.RunRow(dbSession)
-	if row.IsNil() {
-		fmt.Println("row nil")
-		_, err = r.Table("hub").Insert(h.defaultHub).RunWrite(dbSession)
-	} else {
-		var hubInDB hub
-		if scanErr := row.Scan(&hubInDB); scanErr != nil {
-			fmt.Println("Scan Error")
-		} else {
-			h.defaultHub.HubID = hubInDB.HubID
-		}
-	}
+	// since h is still nil when making default hub
+	h.hubMap[h.defaultHub.HubID] = h.defaultHub
 
 	if err != nil {
-		fmt.Println("Default insert error,", err, " -- Still running the default hub.")
+		fmt.Println("Default insert error, still running hub.", err)
 	}
 
-	// create hub_user index
-	_, err = r.Table("hub_user").IndexCreateFunc("hub_user_id", func(row r.RqlTerm) interface{} {
-		return []interface{}{row.Field("hub_id"), row.Field("user_id")}
-	}).Run(dbSession)
-	fmt.Println("create index,", err)
-	_, err = r.Table("hub_user").IndexWait().Run(dbSession)
+	// create index
+	_, err = r.Table("hub").IndexCreate("name").Run(dbSession)
+	fmt.Println("create index name error: ", err)
+	_, err = r.Table("user").IndexCreate("email").Run(dbSession)
+	fmt.Println("create index user email error: ", err)
 
-	fmt.Println("wait index,", err)
 	go h.defaultHub.run()
 }
 
 // newHub return's a new hub object
 // It takes in a connection that will be inserted into the hub
-func newHub(hubName string, con *connection) *hub {
+func newHub(hubName string, con *connection) (*hub, error) {
 	newH := &hub{
 		HubName:     hubName,
 		HubUsers:    make(map[string]string),
@@ -89,30 +73,28 @@ func newHub(hubName string, con *connection) *hub {
 		connections: make(map[*connection]bool),
 	}
 
-	// Todo: Fix this when rethink can do uniques
-	query := r.Table("hub").Filter(r.Row.Field("name").Eq(hubName))
-	row, err := query.RunRow(dbSession)
+	err := newH.GetByName(hubName)
 
-	if err == nil && row.IsNil() {
-		fmt.Println("row nil")
+	if newH.HubID == "" && err == nil { // hub not in DB, insert
+		fmt.Println("hub not in db")
 		_, err = r.Table("hub").Insert(newH).RunWrite(dbSession)
 	}
 
 	if err != nil {
 		fmt.Println("Error newHub", err)
-		return nil
+		return nil, err
 	}
 
 	if con != nil {
 		newH.connections[con] = true
 	}
 
-	// register me in the hubmap
+	// register new hub in the hubmap
 	if h != nil {
 		h.hubMap[newH.HubID] = newH
 	}
 
-	return newH
+	return newH, nil
 }
 
 func (hb *hub) run() {
@@ -133,7 +115,8 @@ func (hb *hub) run() {
 				select {
 				case c.send <- m:
 				default:
-					h.removeEdgeByIDs(c.userID, hb.HubName)
+					u := &User{Id: c.userID, Username: c.userName}
+					h.removeEdge(u, hb)
 					close(c.send)
 					delete(hb.connections, c)
 				}
@@ -142,7 +125,10 @@ func (hb *hub) run() {
 	}
 }
 
-// Get user from the DB by id and populate it into 'u'
+// Get hub from the DB by id and populate it into 'gb'
+// This is not a complete representation of hub since it
+// will only have ID and name after querying. (no conns or anything)
+// The real hub is in h.hubMap[] which is an in-memory store
 func (hb *hub) GetById(id interface{}) error {
 
 	row, err := rethink.Table("hub").Get(id).RunRow(dbSession)
@@ -151,6 +137,22 @@ func (hb *hub) GetById(id interface{}) error {
 	}
 	if !row.IsNil() {
 		if err := row.Scan(&hb); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (hb *hub) GetByName(hbName string) error {
+	row, err := r.Table("hub").Filter(r.Row.Field("name").Eq(hbName)).RunRow(dbSession)
+
+	if err != nil {
+		fmt.Println("Error getbyname filter.")
+		return err
+	}
+	if !row.IsNil() {
+		if err := row.Scan(&hb); err != nil {
+			fmt.Println("Error scanning hub from db.")
 			return err
 		}
 	}
@@ -176,8 +178,8 @@ func (hm *hubManager) getHubByID(hubID *string) *hub {
 func (hm *hubManager) getAllHubsOfUser(userID *string) []*hub {
 	hubs := make([]*hub)
 
-	if hm.EdgeList != nil && hm.EdgeList.User_to_hubs != nil {
-		for currHub := range hm.EdgeList.User_to_hubs[userID] {
+	if hm.EdgeMap != nil && hm.EdgeMap.User_to_hubs != nil {
+		for currHub := range hm.EdgeMap.User_to_hubs[userID] {
 			hubs = append(hubs, currHub)
 		}
 	} else {
@@ -190,8 +192,8 @@ func (hm *hubManager) getAllHubsOfUser(userID *string) []*hub {
 func (hm *hubManager) getAllUsersOfHub(hb *hub) []*User {
 	users := make([]*User)
 
-	if hm.EdgeList != nil && hm.EdgeList.Hub_to_users != nil {
-		for _, u := range hm.EdgeList.Hub_to_users[hb] {
+	if hm.EdgeMap != nil && hm.EdgeMap.Hub_to_users != nil {
+		for _, u := range hm.EdgeMap.Hub_to_users[hb] {
 			users = append(users, u)
 		}
 	} else {
@@ -205,26 +207,26 @@ func (hm *hubManager) insertEdge(u *User, hb *hub) {
 	userID := u.Id
 	hubID := h.HubID
 
-	if hm.EdgeList == nil {
-		hm.EdgeList = Edges{}
+	if hm.EdgeMap == nil {
+		hm.EdgeMap = Edges{}
 	}
 
 	// Initialize needed structs
-	if hm.EdgeList.Hub_to_users == nil {
-		hm.EdgeList.Hub_to_users = make(map[*hub]map[string]*User)
+	if hm.EdgeMap.Hub_to_users == nil {
+		hm.EdgeMap.Hub_to_users = make(map[*hub]map[string]*User)
 	}
-	if hm.EdgeList.User_to_hubs == nil {
-		hm.EdgeList.User_to_hubs = make(map[string]map[*hub]bool)
+	if hm.EdgeMap.User_to_hubs == nil {
+		hm.EdgeMap.User_to_hubs = make(map[string]map[*hub]bool)
 	}
-	if hm.EdgeList.Hub_to_users[hb] == nil {
-		hm.EdgeList.Hub_to_users[hb] = make(map[string]*User)
+	if hm.EdgeMap.Hub_to_users[hb] == nil {
+		hm.EdgeMap.Hub_to_users[hb] = make(map[string]*User)
 	}
-	if hm.EdgeList.User_to_hubs[userID] == nil {
-		hm.EdgeList.User_to_hubs[userID] = make(map[string]*hub)
+	if hm.EdgeMap.User_to_hubs[userID] == nil {
+		hm.EdgeMap.User_to_hubs[userID] = make(map[string]*hub)
 	}
 
-	hm.EdgeList.Hub_to_users[hb][userID] = u
-	hm.EdgeList.User_to_hubs[userID][hb] = true
+	hm.EdgeMap.Hub_to_users[hb][userID] = u
+	hm.EdgeMap.User_to_hubs[userID][hb] = true
 }
 
 func (hm *hubManager) insertEdgeByID(uId *string, hId *string) {
@@ -248,12 +250,12 @@ func (hm *hubManager) removeEdge(u *User, h *hub) error {
 
 	if h != nil {
 		hubID = h.HubID
-		delete(hm.EdgeList.Hub_to_users[hubId], userID)
-		delete(hm.EdgeList.User_to_hubs[userID], hubID)
+		delete(hm.EdgeMap.Hub_to_users[hubId], userID)
+		delete(hm.EdgeMap.User_to_hubs[userID], hubID)
 	} else { // else, delete user from all his hubs
-		for hID := range hm.EdgeList.User_to_hubs[userID] {
-			delete(hm.EdgeList.Hub_to_users[hID], userID)
-			delete(hm.EdgeList.User_to_hubs[userID], hID)
+		for hID := range hm.EdgeMap.User_to_hubs[userID] {
+			delete(hm.EdgeMap.Hub_to_users[hID], userID)
+			delete(hm.EdgeMap.User_to_hubs[userID], hID)
 		}
 	}
 	return nil
