@@ -14,7 +14,7 @@ import (
 // hub maintains the set of active connections and broadcasts messages to the
 // connections.
 type hub struct {
-	HubID     string         `form:"-" gorethink:"id,omitempty""`
+	HubID     string         `form:"-" gorethink:"id"`
 	HubName   string         `form:"name" gorethink:"name"`
 	HubAdmins map[string]int `gorethink:"admins"`
 
@@ -41,8 +41,9 @@ var h *hubManager
 
 func init() {
 	h = &hubManager{
-		hubMap:     make(map[string]*hub),
-		userHubMap: make(map[string]map[string]bool),
+		hubMap: make(map[string]*hub),
+		// userHubMap: make(map[string]map[string]bool),
+		EdgeList:   Edges{},
 		defaultHub: newHub("default", nil),
 	}
 	h.hubMap[h.defaultHub.HubName] = h.defaultHub
@@ -88,11 +89,6 @@ func newHub(hubName string, con *connection) *hub {
 		connections: make(map[*connection]bool),
 	}
 
-	// register me in the hubmap
-	if h != nil {
-		h.hubMap[hubName] = newH
-	}
-
 	// Todo: Fix this when rethink can do uniques
 	query := r.Table("hub").Filter(r.Row.Field("name").Eq(hubName))
 	row, err := query.RunRow(dbSession)
@@ -111,6 +107,11 @@ func newHub(hubName string, con *connection) *hub {
 		newH.connections[con] = true
 	}
 
+	// register me in the hubmap
+	if h != nil {
+		h.hubMap[newH.HubID] = newH
+	}
+
 	return newH
 }
 
@@ -119,41 +120,22 @@ func (hb *hub) run() {
 		select {
 		case c := <-hb.register:
 			hb.connections[c] = true
+			u := &User{Id: c.userID, Username: c.userName}
 			h.insertEdge(u, h)
-
-			// // remember {hub, user} relationship
-			// hu := &hubUser{HubID: hb.HubID, UserID: c.userID, UserName: c.userName}
-			// _, err := r.Table("hub_user").Insert(hu).RunWrite(dbSession)
-
-			// print, _ := json.MarshalIndent(hb, "", "  ")
-			// fmt.Println(string(print), err)
 		case c := <-hb.unregister:
-			delete(hb.connections, c)
-			delete(hb.HubUsers, c.userID)
-			close(c.send)
+			u := &User{Id: c.userID, Username: c.userName}
+			h.removeEdge(u, hb)
 
-			// // delete {hub, user} relationship
-			// q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID}).Delete()
-			// _, err := q.RunWrite(dbSession)
-			// if err != nil {
-			// 	fmt.Println(err)
-			// }
+			delete(hb.connections, c)
+			close(c.send)
 		case m := <-hb.broadcast:
 			for c := range hb.connections {
 				select {
 				case c.send <- m:
 				default:
+					h.removeEdgeByIDs(c.userID, hb.HubName)
 					close(c.send)
 					delete(hb.connections, c)
-					delete(hb.HubUsers, c.userID)
-
-					// // delete {hub, user} relationship
-					// q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID})
-					// q = q.Delete()
-					// _, err := q.RunWrite(dbSession)
-					// if err != nil {
-					// 	fmt.Println(err)
-					// }
 				}
 			}
 		}
@@ -248,8 +230,11 @@ func (hm *hubManager) insertEdge(u *User, hb *hub) {
 func (hm *hubManager) insertEdgeByID(uId *string, hId *string) {
 	u := User{}
 	u.GetById(uId)
+	if hm.hubMap[hId] == nil {
+		hm.hubMap[hId] = newHub(nil, nil)
+	}
 
-	hm.insertEdge(u, hm.hubMap[hId])
+	hm.insertEdge(u)
 }
 
 // removeEdge deletes a relationship between a user and a hub
@@ -271,15 +256,18 @@ func (hm *hubManager) removeEdge(u *User, h *hub) error {
 			delete(hm.EdgeList.User_to_hubs[userID], hID)
 		}
 	}
+	return nil
 }
 
 // removeEdgeByIDs is a wrapper on removeEdge if you want to pass in the IDs
 func (hm *hubManager) removeEdgeByIDs(userID *string, hubID *string) error {
 	u := User{}
-	var hb *hub = nil
 	u.GetById(userID)
+
+	var hb *hub = nil
 	if hubID != nil {
-		hb.GetById(hubID)
+		hb = hm.hubMap[hubID]
 	}
+
 	hm.removeEdge(u, hb)
 }

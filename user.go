@@ -35,12 +35,6 @@ type User struct {
 	Hubs map[string]bool `form:"-" gorethink:"hubs"`
 }
 
-// Public representation of a user
-type UserDisplay struct {
-	Id       string
-	Username string
-}
-
 // GetAnonymousUser should generate an anonymous user model
 // for all sessions. This should be an unauthenticated 0 value struct.
 func GenerateAnonymousUser() sessionauth.User {
