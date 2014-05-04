@@ -4,6 +4,7 @@
 	<style>
 		body { 
 		    padding-top: 52px; 
+		    padding-bottom: 37px; 
 		}
 		#fromDiv {
 			padding-right:5px;
@@ -31,7 +32,7 @@
 	      <li><a href="/">Home</a></li>
     	</ul> 
   </div>
-	<div id="chatWrap" style="padding:0px;" glue-scroll ng-model="glued">
+	<div id="chatWrap" glue-scroll ng-model="glued">
 		<div style="padding:0px;" ng-repeat="m in messages track by $index">
 			<div class="row">
 				<div id="fromDiv" align="right"class="col-xs-1">[{{m.from}}]: </div>
@@ -134,11 +135,6 @@
 	                    el.scrollTop = el.scrollHeight;
 	                }
 
-	                function shouldActivateAutoScroll(){
-	                    // + 1 catches off by one errors in chrome
-	                    return el.scrollTop + el.clientHeight + 1 >= el.scrollHeight;
-	                }
-
 	                scope.$watch('messages', function(){
 	                    if(ngModel.$viewValue){
 	                        scrollToBottom();
@@ -146,7 +142,10 @@
 	                }, true); // true means check deep
 
 	                $el.bind('scroll', function(){
-	                    scope.$apply(ngModel.$setViewValue.bind(ngModel, shouldActivateAutoScroll));
+	                		var newVal = (el.scrollTop + el.clientHeight + 1 >= el.scrollHeight)
+	                		if (ngModel.$viewValue != newVal){
+	                    	scope.$apply(ngModel.$setViewValue.bind(ngModel, newVal));
+	                		}
 	                });
 	            }
 	        };
