@@ -14,15 +14,9 @@ import (
 // hub maintains the set of active connections and broadcasts messages to the
 // connections.
 type hub struct {
-<<<<<<< HEAD
-	HubID    string           `form:"-" gorethink:"id,omitempty""`
-	HubName  string           `form:"name" gorethink:"name"`
-	HubUsers map[string]*User `form:"-" gorethink:"-"`
-=======
 	HubID     string         `form:"-" gorethink:"id"`
 	HubName   string         `form:"name" gorethink:"name"`
 	HubAdmins map[string]int `gorethink:"admins"`
->>>>>>> redesign_hub_logic
 
 	connections map[*connection]bool `form:"-" gorethink:"-"`
 	broadcast   chan []byte          `form:"-" gorethink:"-"`
@@ -30,20 +24,11 @@ type hub struct {
 	unregister  chan *connection     `form:"-" gorethink:"-"`
 }
 
-<<<<<<< HEAD
-// // hubuser represents the relationship between users and hubs
-// type hubUser struct {
-// 	HubID    string `gorethink:"hub_id"`
-// 	UserID   string `gorethink:"user_id"`
-// 	UserName string `gorethink:"user_name"`
-// }
-=======
 // Edges holds all the edges between the users and hubs, bidirectional
 type Edges struct {
 	Hub_to_users map[*hub]*map[*connection]bool // one-to-many hub  -> conns
 	User_to_hubs map[*connection]*map[*hub]bool // one-to-many conn -> hubs
 }
->>>>>>> redesign_hub_logic
 
 // hubManger is the in-memory hub manager
 type hubManager struct {
@@ -80,14 +65,9 @@ func init() {
 // It takes in a connection that will be inserted into the hub if not nil
 func newHub(hubName string, con *connection) (*hub, error) {
 	newH := &hub{
-<<<<<<< HEAD
-		HubName:     hubName,
-		HubUsers:    make(map[*User]bool),
-=======
 		HubName:   hubName,
 		HubAdmins: make(map[string]int),
 
->>>>>>> redesign_hub_logic
 		broadcast:   make(chan []byte),
 		register:    make(chan *connection),
 		unregister:  make(chan *connection),
@@ -126,42 +106,13 @@ func (hb *hub) run() {
 
 			h.insertEdge(c, h)
 		case c := <-hb.unregister:
-			u := &User{Id: c.userID, Username: c.userName}
 			h.removeEdge(c, hb)
-
-			delete(hb.connections, c)
-<<<<<<< HEAD
-			delete(hb.HubUsers, c.userID)
-			close(c.send)
-
-			// delete {hub, user} relationship
-			// q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID}).Delete()
-			// _, err := q.RunWrite(dbSession)
-			// if err != nil {
-			// 	fmt.Println(err)
-			// }
-=======
->>>>>>> redesign_hub_logic
 		case m := <-hb.broadcast:
 			for c := range hb.connections {
 				select {
 				case c.send <- m:
 				default:
-					u := &User{Id: c.userID, Username: c.userName}
 					h.removeEdge(u, c)
-					delete(hb.connections, c)
-<<<<<<< HEAD
-					delete(hb.HubUsers, c.userID)
-
-					// // delete {hub, user} relationship
-					// q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID})
-					// q = q.Delete()
-					// _, err := q.RunWrite(dbSession)
-					// if err != nil {
-					// 	fmt.Println(err)
-					// }
-=======
->>>>>>> redesign_hub_logic
 				}
 			}
 		}

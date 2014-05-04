@@ -169,19 +169,6 @@ func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 	}
 	connMap[userID] = c // remember user's connection
 
-<<<<<<< HEAD
-	if h == nil {
-		fmt.Println("h is nil")
-	}
-
-	// add default hub into user's hubs when first connecting
-	if h.userHubMap[userID] == nil {
-		h.userHubMap[userID] = make(map[string]bool)
-	}
-	h.userHubMap[userID]["default"] = true
-
-=======
->>>>>>> redesign_hub_logic
 	if h.defaultHub == nil {
 		h.defaultHub = newHub("default", c)
 		go h.defaultHub.run()
