@@ -70,7 +70,7 @@ func (c *connection) readPump() {
 	defer func() {
 		// if this conn is closed, user is done
 		// unregister from all its hubs, clean the maps
-		h.remEdge <- hubConnMsg{Con: con}
+		h.remEdge <- hubConnMsg{Con: c}
 		delete(connMap, c.userID)
 		c.ws.Close()
 	}()
@@ -95,7 +95,7 @@ func (c *connection) readPump() {
 		// Then send the message to the hub.
 		b, err := json.Marshal(msg)
 		if err != nil {
-			h.bCastToHub <- hubConnMsg{Con: C, HubID: msg.HubID, Msg: b}
+			h.bCastToHub <- hubConnMsg{Con: c, HubID: msg.HubID, Msg: b}
 		} else {
 			fmt.Println("Error decoding message, ", err)
 		}
@@ -164,14 +164,11 @@ func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 	}
 	connMap[userID] = c // remember user's connection
 
-	if h.defaultHub == nil {
-		h.defaultHub = newHub("default", c)
-		go h.defaultHub.run()
-	} else {
-		h.defaultHub.register <- c
+	if h.DefaultHub == nil {
+		h.DefaultHub, _ = newHub("default", nil)
 	}
 
-	h.insertEdge(currUser, h.defaultHub)
+	h.addEdge <- hubConnMsg{Con: c, Hub: h.DefaultHub}
 
 	go c.writePump()
 	c.readPump()

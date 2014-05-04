@@ -55,18 +55,17 @@ var h *hubManager
 
 func init() {
 	h = &hubManager{
-		HubMap:     make(map[string]*hub),
-		EdgeMap:    Edges{},
-		DefaultHub: newHub("default", nil),
+		HubMap:  make(map[string]*hub),
+		EdgeMap: &Edges{},
 
-		newHub:     make(chan HubConnMsg, 256),
+		newHub:     make(chan hubConnMsg, 256),
 		addEdge:    make(chan hubConnMsg, 2048),
 		remEdge:    make(chan hubConnMsg, 2048),
 		bCastToHub: make(chan hubConnMsg, 2048),
 	}
 
-	// since h is still nil when making default hub
-	h.hubMap[h.DefaultHub.HubID] = h.DefaultHub
+	var err error
+	h.DefaultHub, err = newHub("default", nil)
 
 	if err != nil {
 		fmt.Println("Default insert error, still running hub.", err)
@@ -79,7 +78,6 @@ func init() {
 	fmt.Println("create index user email error: ", err)
 
 	go h.run()
-	go h.DefaultHub.run()
 }
 
 // newHub return's a new hub object
@@ -118,6 +116,8 @@ func newHub(hubName string, con *connection) (*hub, error) {
 		h.addEdge <- msg
 	}
 
+	go newH.run()
+
 	return newH, nil
 }
 
@@ -125,7 +125,7 @@ func (hb *hub) run() {
 	for {
 		select {
 		case r := <-hb.register:
-			hb.connections[c] = true
+			hb.connections[r] = true
 		case unr := <-hb.unregister:
 			delete(hb.connections, unr)
 		case m := <-hb.broadcast:
@@ -146,7 +146,7 @@ func (hb *hub) run() {
 // The real hub is in h.hubMap[] which is an in-memory store
 func (hb *hub) GetById(id string) error {
 
-	row, err := rethink.Table("hub").Get(id).RunRow(dbSession)
+	row, err := r.Table("hub").Get(id).RunRow(dbSession)
 	if err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func (hm *hubManager) run() {
 func (hm *hubManager) insertEdge(c *connection, hb *hub) {
 
 	if hm.EdgeMap == nil {
-		hm.EdgeMap = Edges{}
+		hm.EdgeMap = &Edges{}
 	}
 
 	// Initialize needed structs
@@ -206,7 +206,7 @@ func (hm *hubManager) insertEdge(c *connection, hb *hub) {
 		if hb.connections == nil {
 			hb.connections = make(map[*connection]bool)
 		}
-		hm.EdgeMap.Hub_to_users[hb] = &hb.connections
+		hm.EdgeMap.Hub_to_users[hb] = hb.connections
 	}
 	if hm.EdgeMap.User_to_hubs[c] == nil {
 		hm.EdgeMap.User_to_hubs[c] = make(map[*hub]bool)
