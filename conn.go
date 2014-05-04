@@ -172,6 +172,7 @@ func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 	if h == nil {
 		fmt.Println("h is nil")
 	}
+
 	// add default hub into user's hubs when first connecting
 	if m := h.userHubMap[userID]; m == nil {
 		h.userHubMap[userID] = make(map[string]bool)

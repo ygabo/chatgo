@@ -5,7 +5,7 @@
 package main
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 
 	r "github.com/dancannon/gorethink"
@@ -14,9 +14,8 @@ import (
 // hub maintains the set of active connections and broadcasts messages to the
 // connections.
 type hub struct {
-	HubID    string            `form:"-" gorethink:"id,omitempty""`
-	HubName  string            `form:"name" gorethink:"name"`
-	HubUsers map[string]string `form:"-" gorethink:"-"`
+	HubID   string `form:"-" gorethink:"id,omitempty""`
+	HubName string `form:"name" gorethink:"name"`
 
 	connections map[*connection]bool `form:"-" gorethink:"-"`
 	broadcast   chan []byte          `form:"-" gorethink:"-"`
@@ -24,18 +23,25 @@ type hub struct {
 	unregister  chan *connection     `form:"-" gorethink:"-"`
 }
 
-// hubuser represents the relationship between users and hubs
-type hubUser struct {
-	HubID    string `gorethink:"hub_id"`
-	UserID   string `gorethink:"user_id"`
-	UserName string `gorethink:"user_name"`
+// Edges holds all the edges between the users and hubs, bidirectional
+type Edges struct {
+	User_to_hub map[string]map[string]*hub  // represents edge from users to hubs
+	Hub_to_user map[string]map[string]*User // other way around
 }
+
+// hubuser represents the relationship between users and hubs
+// type hubUser struct {
+// 	HubID    string `gorethink:"hub_id"`
+// 	UserID   string `gorethink:"user_id"`
+// 	UserName string `gorethink:"user_name"`
+// }
 
 // hubManger is the in-memory hub manager
 type hubManager struct {
-	hubMap     map[string]*hub            // maps hub IDs to the actual hub objects
-	userHubMap map[string]map[string]bool // each user has a collection of hubs
-	defaultHub *hub                       // default hub everyone connects to first
+	hubMap     map[string]*hub // maps hub IDs to the actual hub objects
+	EdgeList   *Edges          // represents edges between users and hubs using their IDs
+	defaultHub *hub            // default hub everyone connects to first
+	// userHubMap map[string]map[string]bool // each user has a collection of hubs
 }
 
 var h *hubManager
@@ -122,23 +128,23 @@ func (hb *hub) run() {
 			hb.connections[c] = true
 			hb.HubUsers[c.userID] = c.userName
 
-			// remember {hub, user} relationship
-			hu := &hubUser{HubID: hb.HubID, UserID: c.userID, UserName: c.userName}
-			_, err := r.Table("hub_user").Insert(hu).RunWrite(dbSession)
+			// // remember {hub, user} relationship
+			// hu := &hubUser{HubID: hb.HubID, UserID: c.userID, UserName: c.userName}
+			// _, err := r.Table("hub_user").Insert(hu).RunWrite(dbSession)
 
-			print, _ := json.MarshalIndent(hb, "", "  ")
-			fmt.Println(string(print), err)
+			// print, _ := json.MarshalIndent(hb, "", "  ")
+			// fmt.Println(string(print), err)
 		case c := <-hb.unregister:
 			delete(hb.connections, c)
 			delete(hb.HubUsers, c.userID)
 			close(c.send)
 
-			// delete {hub, user} relationship
-			q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID}).Delete()
-			_, err := q.RunWrite(dbSession)
-			if err != nil {
-				fmt.Println(err)
-			}
+			// // delete {hub, user} relationship
+			// q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID}).Delete()
+			// _, err := q.RunWrite(dbSession)
+			// if err != nil {
+			// 	fmt.Println(err)
+			// }
 		case m := <-hb.broadcast:
 			for c := range hb.connections {
 				select {
@@ -148,13 +154,13 @@ func (hb *hub) run() {
 					delete(hb.connections, c)
 					delete(hb.HubUsers, c.userID)
 
-					// delete {hub, user} relationship
-					q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID})
-					q = q.Delete()
-					_, err := q.RunWrite(dbSession)
-					if err != nil {
-						fmt.Println(err)
-					}
+					// // delete {hub, user} relationship
+					// q := r.Table("hub_user").GetAllByIndex("hub_user_id", []interface{}{hb.HubID, c.userID})
+					// q = q.Delete()
+					// _, err := q.RunWrite(dbSession)
+					// if err != nil {
+					// 	fmt.Println(err)
+					// }
 				}
 			}
 		}
@@ -163,5 +169,93 @@ func (hb *hub) run() {
 
 // userDisconnect removes the user from all the hubs
 func (hm *hubManager) userDisconnect(userID string) {
+
+}
+
+// getHubByID return the hub with the corresponding ID
+// nil if it doesn't exist
+func (hm *hubManager) getHubByID(hubID string) *hub {
+	for key, val := range hm.hubMap {
+		if key == hubID {
+			return val
+		}
+	}
+	return nil
+}
+
+func (hm *hubManager) getAllHubsOfUser(userID string) []*hub {
+	hubs := make([]*hub)
+
+	if hm.EdgeList != nil && hm.EdgeList.User_to_hubs != nil {
+		for currHub := range hm.EdgeList.User_to_hubs[userID] {
+			hubs = append(hubs, currHub)
+		}
+	} else {
+		return nil
+	}
+
+	return hubs
+}
+
+func (hm *hubManager) getAllUsersOfHub(hubID string) []*User {
+	users := make([]*User)
+
+	if hm.EdgeList != nil && hm.EdgeList.Hub_to_user != nil {
+		for u := range hm.EdgeList.Hub_to_user[hubID] {
+			users = append(users, u)
+		}
+	} else {
+		return nil
+	}
+
+	return users
+}
+
+func (hm *hubManager) insertEdge(u *User, h *hub) {
+	userID := u.Id
+	hubID := h.HubID
+
+	if hm.EdgeList == nil {
+		hm.EdgeList = Edges{}
+	}
+
+	// Initialize needed structs
+	if hm.EdgeList.Hub_to_user == nil {
+		hm.EdgeList.Hub_to_user = make(map[string]map[string]*User)
+	}
+	if hm.EdgeList.User_to_hub == nil {
+		hm.EdgeList.User_to_hub = make(map[string]map[string]*hub)
+	}
+	if hm.EdgeList.Hub_to_user[hubID] == nil {
+		hm.EdgeList.Hub_to_user[hubId] = make(map[string]*User)
+	}
+	if hm.EdgeList.User_to_hub[userID] == nil {
+		hm.EdgeList.User_to_hub[userID] = make(map[string]*hub)
+	}
+
+	hm.EdgeList.Hub_to_user[hubId][userID] = u
+	hm.EdgeList.User_to_hub[userID][hubID] = h
+}
+
+// removeEdge deletes a relationshipt between a user and a hub
+// nil hub means remove user from all hubs
+func (hm *hubManager) removeEdge(u *User, h *hub) error {
+	if u == nil {
+		return errors.New("User is nil.")
+	}
+	userID := u.Id
+	var hubID string = nil
+
+	if h != nil {
+		hubID = h.HubID
+		delete(hm.EdgeList.Hub_to_user[hubId], userID)
+		delete(hm.EdgeList.User_to_hub[userID], hubID)
+	} else { // else, delete user from all his hubs
+		for hID := range hm.EdgeList.User_to_hub[userID] {
+			delete(hm.EdgeList.Hub_to_user[hID], userID)
+			delete(hm.EdgeList.User_to_hub[userID], hID)
+		}
+
+	}
 
 }
