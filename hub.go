@@ -19,7 +19,7 @@ type hub struct {
 	HubAdmins map[string]int `gorethink:"admins"`
 
 	connections map[*connection]bool `form:"-" gorethink:"-"`
-	broadcast   chan []byte          `form:"-" gorethink:"-"`
+	broadcast   chan msg             `form:"-" gorethink:"-"`
 	register    chan *connection     `form:"-" gorethink:"-"`
 	unregister  chan *connection     `form:"-" gorethink:"-"`
 }
@@ -36,7 +36,7 @@ type hubConnMsg struct {
 	Con *connection
 
 	HubID string
-	Msg   []byte
+	Msg   *msg
 }
 
 // hubManger is the in-memory hub manager
@@ -87,7 +87,7 @@ func newHub(hubName string, con *connection) (*hub, error) {
 		HubName:   hubName,
 		HubAdmins: make(map[string]int),
 
-		broadcast:   make(chan []byte),
+		broadcast:   make(chan msg, 256),
 		register:    make(chan *connection),
 		unregister:  make(chan *connection),
 		connections: make(map[*connection]bool),
@@ -106,14 +106,14 @@ func newHub(hubName string, con *connection) (*hub, error) {
 	}
 
 	// register new hub in the hubmap
-	msg := hubConnMsg{Con: con, Hub: newH}
+	newHubMsg := hubConnMsg{Con: con, Hub: newH}
 
 	if h != nil {
-		h.newHub <- msg
+		h.newHub <- newHubMsg
 	}
 
 	if con != nil {
-		h.addEdge <- msg
+		h.addEdge <- newHubMsg
 	}
 
 	go newH.run()
@@ -126,8 +126,8 @@ func (hb *hub) run() {
 		select {
 		case r := <-hb.register:
 			hb.connections[r] = true
-		case unr := <-hb.unregister:
-			delete(hb.connections, unr)
+		case u := <-hb.unregister:
+			delete(hb.connections, u)
 		case m := <-hb.broadcast:
 			for c := range hb.connections {
 				select {
@@ -184,7 +184,7 @@ func (hm *hubManager) run() {
 		case r := <-hm.remEdge:
 			hm.removeEdge(r.Con, r.Hub)
 		case b := <-hm.bCastToHub:
-			hm.HubMap[b.HubID].broadcast <- b.Msg
+			hm.HubMap[b.HubID].broadcast <- *b.Msg
 		}
 	}
 }

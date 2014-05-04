@@ -45,13 +45,13 @@ type connection struct {
 	ws *websocket.Conn
 
 	// Buffered channel of outbound messages.
-	send chan []byte
+	send chan msg
 }
 
-type messageFrom struct {
+type msg struct {
 	HubID string `json:"hub_id"`
-	Body  string `json:"body"`
 	From  string `json:"from,omitempty"`
+	Body  string `json:"body"`
 }
 
 // connMap maps the userIDs to the websocket connection
@@ -81,7 +81,7 @@ func (c *connection) readPump() {
 
 	fmt.Println("Started read pump:", c.userID)
 	for {
-		msg := messageFrom{}
+		msg := msg{}
 		err := c.ws.ReadJSON(&msg)
 		msg.From = c.userName
 
@@ -93,9 +93,11 @@ func (c *connection) readPump() {
 		// Send the message to the proper hub
 		// Check if user is part of the hub first.
 		// Then send the message to the hub.
-		b, err := json.Marshal(msg)
-		if err != nil {
-			h.bCastToHub <- hubConnMsg{Con: c, HubID: msg.HubID, Msg: b}
+		//b, err := json.Marshal(msg)
+		//fmt.Println(b)
+		fmt.Println(msg)
+		if err == nil {
+			h.bCastToHub <- hubConnMsg{Con: c, HubID: msg.HubID, Msg: &msg}
 		} else {
 			fmt.Println("Error decoding message, ", err)
 		}
@@ -125,7 +127,12 @@ func (c *connection) writePump() {
 				c.write(websocket.CloseMessage, []byte{})
 				return
 			}
-			if err := c.write(websocket.TextMessage, message); err != nil {
+			b, jsonErr := json.Marshal(message)
+			if jsonErr != nil {
+				fmt.Println("json marshal error", message)
+				return
+			}
+			if err := c.write(websocket.TextMessage, b); err != nil {
 				return
 			}
 		case <-ticker.C:
@@ -159,7 +166,7 @@ func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 	c := &connection{
 		userID:   userID,
 		userName: userName,
-		send:     make(chan []byte, 256),
+		send:     make(chan msg, 256),
 		ws:       ws,
 	}
 	connMap[userID] = c // remember user's connection

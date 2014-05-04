@@ -39,7 +39,7 @@
 
 	app.controller("MainCtl", ["$scope", function($scope) {
 		$scope.messages = [];
-
+		$scope.defaultID = "77133889-76fb-41d0-8483-ca902f701417"
 		var conn = new WebSocket("ws://localhost:3000/room");
 		// called when the server closes the connection
 		conn.onclose = function(e) {
@@ -60,6 +60,7 @@
 		// called when a message is received from the server
 		conn.onmessage = function(e){
 			$scope.$apply(function(){
+				console.log(e.data)
 				var data = JSON.parse(e.data)
 				if ( !data.from ) {
 					data.from = "anon" // Todo, do better at anon names
@@ -73,7 +74,7 @@
 		// Send to ws and properly input the correct hub ID.
 		$scope.send = function() { 
 			conn.send(JSON.stringify({
-  				hub_id: "default",
+  				hub_id: $scope.defaultID,
   				body: $scope.msg
 			}));
 			$scope.msg = "";
