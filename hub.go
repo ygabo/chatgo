@@ -26,8 +26,8 @@ type hub struct {
 
 // Edges holds all the edges between the users and hubs, bidirectional
 type Edges struct {
-	Hub_to_users map[*hub]*map[*connection]bool // one-to-many hub  -> conns
-	User_to_hubs map[*connection]*map[*hub]bool // one-to-many conn -> hubs
+	Hub_to_users map[*hub]map[*connection]bool // one-to-many hub  -> conns
+	User_to_hubs map[*connection]map[*hub]bool // one-to-many conn -> hubs
 }
 
 // hubConnMsg is the message type passed to the hubmanager
@@ -124,6 +124,10 @@ func newHub(hubName string, con *connection) (*hub, error) {
 func (hb *hub) run() {
 	for {
 		select {
+		case r := <-hb.register:
+			hb.connections[c] = true
+		case unr := <-hb.unregister:
+			delete(hb.connections, unr)
 		case m := <-hb.broadcast:
 			for c := range hb.connections {
 				select {
@@ -186,7 +190,6 @@ func (hm *hubManager) run() {
 }
 
 func (hm *hubManager) insertEdge(c *connection, hb *hub) {
-	hubID := h.HubID
 
 	if hm.EdgeMap == nil {
 		hm.EdgeMap = Edges{}
@@ -209,7 +212,7 @@ func (hm *hubManager) insertEdge(c *connection, hb *hub) {
 		hm.EdgeMap.User_to_hubs[c] = make(map[*hub]bool)
 	}
 
-	hm.EdgeMap.Hub_to_users[hb][c] = true
+	hb.register <- c
 	hm.EdgeMap.User_to_hubs[c][hb] = true
 }
 
@@ -221,11 +224,11 @@ func (hm *hubManager) removeEdge(c *connection, hb *hub) error {
 	}
 
 	if hb != nil {
-		delete(hm.EdgeMap.Hub_to_users[hb], c)
+		hb.unregister <- c
 		delete(hm.EdgeMap.User_to_hubs[c], hb)
 	} else { // else, delete user from all his hubs
 		for hh := range hm.EdgeMap.User_to_hubs[c] {
-			delete(hm.EdgeMap.Hub_to_users[hh], c)
+			hh.unregister <- c
 			delete(hm.EdgeMap.User_to_hubs[c], hh)
 		}
 	}
