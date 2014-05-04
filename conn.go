@@ -169,6 +169,7 @@ func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 	}
 	connMap[userID] = c // remember user's connection
 
+<<<<<<< HEAD
 	if h == nil {
 		fmt.Println("h is nil")
 	}
@@ -179,12 +180,16 @@ func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 	}
 	h.userHubMap[userID]["default"] = true
 
+=======
+>>>>>>> redesign_hub_logic
 	if h.defaultHub == nil {
 		h.defaultHub = newHub("default", c)
 		go h.defaultHub.run()
 	} else {
 		h.defaultHub.register <- c
 	}
+
+	h.insertEdge(currUser, h.defaultHub)
 
 	go c.writePump()
 	c.readPump()
