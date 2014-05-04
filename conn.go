@@ -70,7 +70,7 @@ func (c *connection) readPump() {
 	defer func() {
 		// if this conn is closed, user is done
 		// unregister from all its hubs, clean the maps
-		h.remEdge <- &hubConnMsg{Con: con}
+		h.remEdge <- hubConnMsg{Con: con}
 		delete(connMap, c.userID)
 		c.ws.Close()
 	}()
@@ -93,13 +93,11 @@ func (c *connection) readPump() {
 		// Send the message to the proper hub
 		// Check if user is part of the hub first.
 		// Then send the message to the hub.
-		if h.userHubMap[c.userID][msg.HubID] {
-			b, err := json.Marshal(msg)
-			if err == nil {
-				h.hubMap[msg.HubID].broadcast <- b
-			} else {
-				fmt.Println("Error decoding message, ", err)
-			}
+		b, err := json.Marshal(msg)
+		if err != nil {
+			h.bCastToHub <- hubConnMsg{Con: C, HubID: msg.HubID, Msg: b}
+		} else {
+			fmt.Println("Error decoding message, ", err)
 		}
 	}
 }

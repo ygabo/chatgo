@@ -34,7 +34,9 @@ type Edges struct {
 type hubConnMsg struct {
 	Hub *hub
 	Con *connection
-	Msg []byte
+
+	HubID string
+	Msg   []byte
 }
 
 // hubManger is the in-memory hub manager
@@ -43,10 +45,10 @@ type hubManager struct {
 	EdgeMap    *Edges          // represents edges between users and hubs
 	DefaultHub *hub            // default hub everyone connects to first
 
-	newHub     chan *hubConnMsg
-	addEdge    chan *hubConnMsg
-	remEdge    chan *hubConnMsg
-	bCastToHub chan *hubConnMsg
+	newHub     chan hubConnMsg
+	addEdge    chan hubConnMsg
+	remEdge    chan hubConnMsg
+	bCastToHub chan hubConnMsg
 }
 
 var h *hubManager
@@ -57,10 +59,10 @@ func init() {
 		EdgeMap:    Edges{},
 		DefaultHub: newHub("default", nil),
 
-		newHub:     make(chan *HubConnMsg),
-		addEdge:    make(chan *hubConnMsg),
-		remEdge:    make(chan *hubConnMsg),
-		bCastToHub: make(chan *hubConnMsg),
+		newHub:     make(chan HubConnMsg, 256),
+		addEdge:    make(chan hubConnMsg, 2048),
+		remEdge:    make(chan hubConnMsg, 2048),
+		bCastToHub: make(chan hubConnMsg, 2048),
 	}
 
 	// since h is still nil when making default hub
@@ -77,7 +79,7 @@ func init() {
 	fmt.Println("create index user email error: ", err)
 
 	go h.run()
-	go h.defaultHub.run()
+	go h.DefaultHub.run()
 }
 
 // newHub return's a new hub object
@@ -105,13 +107,15 @@ func newHub(hubName string, con *connection) (*hub, error) {
 		return nil, err
 	}
 
-	if con != nil {
-		newH.connections[con] = true
+	// register new hub in the hubmap
+	msg := hubConnMsg{Con: con, Hub: newH}
+
+	if h != nil {
+		h.newHub <- msg
 	}
 
-	// register new hub in the hubmap
-	if h != nil {
-		h.hubMap[newH.HubID] = newH
+	if con != nil {
+		h.addEdge <- msg
 	}
 
 	return newH, nil
@@ -125,7 +129,7 @@ func (hb *hub) run() {
 				select {
 				case c.send <- m:
 				default:
-					h.remEdge <- &hubConnMsg{Con: c, Hub: hb}
+					h.remEdge <- hubConnMsg{Con: c, Hub: hb}
 				}
 			}
 		}
@@ -175,22 +179,10 @@ func (hm *hubManager) run() {
 			hm.insertEdge(a.Con, a.Hub)
 		case r := <-hm.remEdge:
 			hm.removeEdge(r.Con, r.Hub)
+		case b := <-hm.bCastToHub:
+			hm.HubMap[b.HubID].broadcast <- b.Msg
 		}
 	}
-}
-
-func (hm *hubManager) getAllHubsOfUser(userID string) []*hub {
-	hubs := make([]*hub)
-
-	if hm.EdgeMap != nil && hm.EdgeMap.User_to_hubs != nil {
-		for currHub := range hm.EdgeMap.User_to_hubs[connMap[userID]] {
-			hubs = append(hubs, currHub)
-		}
-	} else {
-		return nil
-	}
-
-	return hubs
 }
 
 func (hm *hubManager) insertEdge(c *connection, hb *hub) {
@@ -227,11 +219,8 @@ func (hm *hubManager) removeEdge(c *connection, hb *hub) error {
 	if c == nil {
 		return errors.New("conn is nil.")
 	}
-	userID := c.userID
-	var hubID string
 
 	if hb != nil {
-		hubID = h.HubID
 		delete(hm.EdgeMap.Hub_to_users[hb], c)
 		delete(hm.EdgeMap.User_to_hubs[c], hb)
 	} else { // else, delete user from all his hubs
