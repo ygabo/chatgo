@@ -50,7 +50,7 @@
 			</div>
 		</div>
 	</div>
-<script src="build/angular.min.js"></script>
+<script src="build/angular.js"></script>
 <script>
 	var app = angular.module("chat", []);
 	"use strict";
@@ -71,12 +71,14 @@
 	app.controller("MainCtl", ["$scope", function($scope) {
 		$scope.messages = [];
 		$scope.defaultID = "77133889-76fb-41d0-8483-ca902f701417"
-		var conn = new WebSocket("ws://localhost:3000/room");
+		var conn = new WebSocket("ws://192.168.1.103:3000/room");
+		console.log(conn)
 		$scope.glued = true;
 
 		// called when the server closes the connection
 		conn.onclose = function(e) {
 			$scope.$apply(function(){
+				console.log(e)
 				$scope.messages.push({from:"server", body:"disconnected"});
 			});
 		};
@@ -84,6 +86,7 @@
 		// called when the connection to the server is made
 		conn.onopen = function(e) {
 			$scope.$apply(function(){
+				console.log(e)
 				$scope.messages.push({from:"server", body:"connected"});
 			})
 		};
@@ -117,39 +120,39 @@
 	//https://rawgit.com/Luegg/angularjs-scroll-glue/master/src/scrollglue.js
 	app.directive('glueScroll', function(){
 
-			function fakeNgModel(initValue){
-		        return {
-		            $setViewValue: function(value){
-		                this.$viewValue = value;
-		            },
-		            $viewValue: initValue
-		        };
-		    }
-	        return {
-	            priority: 1,
-	            require: ['ngModel'],
-	            restrict: 'A',
-	            link: function(scope, $el, attrs, ctrls){
-	                var el = $el[0], ngModel = ctrls[0] || fakeNgModel(false);
-	                function scrollToBottom(){
-	                    el.scrollTop = el.scrollHeight;
-	                }
+		function fakeNgModel(initValue){
+			return {
+		  	$setViewValue: function(value){
+		    	this.$viewValue = value;
+		   	},
+		    $viewValue: initValue
+			};
+		}
+		return {
+		  priority: 1,
+		  require: ['ngModel'],
+		  restrict: 'A',
+		  link: function(scope, $el, attrs, ctrls){
+		  		var el = $el[0], ngModel = ctrls[0] || fakeNgModel(false);
+		  	function scrollToBottom(){
+		  		el.scrollTop = el.scrollHeight;
+		  	}
 
-	                scope.$watch('messages', function(){
-	                    if(ngModel.$viewValue){
-	                        scrollToBottom();
-	                    }
-	                }, true); // true means check deep
+		  	scope.$watch('messages', function(){
+		  		if(ngModel.$viewValue){
+						scrollToBottom();
+		  		}
+		  	}, true); // true means check deep
 
-	                $el.bind('scroll', function(){
-	                		var newVal = (el.scrollTop + el.clientHeight + 1 >= el.scrollHeight)
-	                		if (ngModel.$viewValue != newVal){
-	                    	scope.$apply(ngModel.$setViewValue.bind(ngModel, newVal));
-	                		}
-	                });
-	            }
-	        };
-	    });
+		  	$el.bind('scroll', function(){
+		  		var newVal = (el.scrollTop + el.clientHeight + 1 >= el.scrollHeight)
+		  		if (ngModel.$viewValue != newVal){ 
+		  			scope.$apply(ngModel.$setViewValue.bind(ngModel, newVal));
+		  		}
+		  	});
+		  }
+		};
+	});
 </script>
 </body>
 </html>

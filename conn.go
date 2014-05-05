@@ -150,7 +150,9 @@ func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 	userID := currUser.Id
 	userName := currUser.Username
 
-	if userDuplicate := connMap[userID]; userDuplicate != nil {
+	fmt.Println("handler start", r.RemoteAddr)
+	if connMap[userID] != nil {
+		fmt.Println("Error user already has websocket connection ")
 		return // user already has websocket connection
 	}
 
@@ -161,12 +163,14 @@ func wsHandler(w http.ResponseWriter, user sessionauth.User, r *http.Request) {
 	} else if err != nil {
 		fmt.Println("Handshake error, ", err)
 		return
+	} else {
+		fmt.Println("handshake ok ", userID)
 	}
 
 	c := &connection{
 		userID:   userID,
 		userName: userName,
-		send:     make(chan msg, 256),
+		send:     make(chan msg, 64),
 		ws:       ws,
 	}
 	connMap[userID] = c // remember user's connection

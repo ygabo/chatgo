@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"syscall"
 
 	rethink "github.com/dancannon/gorethink"
 	"github.com/go-martini/martini"
@@ -21,6 +22,11 @@ import (
 var dbSession *rethink.Session
 
 func init() {
+	var rLimit syscall.Rlimit
+	syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit)
+	rLimit.Cur = 1000000
+	syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit)
+
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	dbAddress := os.Getenv("RETHINKDB_ADDRESS")
