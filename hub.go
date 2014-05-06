@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	r "github.com/dancannon/gorethink"
+	"github.com/martini-contrib/render"
 )
 
 // hub maintains the set of active connections and broadcasts messages to the
@@ -16,7 +17,7 @@ import (
 type hub struct {
 	HubID     string         `form:"-" gorethink:"id"`
 	HubName   string         `form:"name" gorethink:"name"`
-	HubAdmins map[string]int `gorethink:"admins"`
+	HubAdmins map[string]int `form:"-" gorethink:"admins"`
 
 	connections map[*connection]bool `form:"-" gorethink:"-"`
 	broadcast   chan msg             `form:"-" gorethink:"-"`
@@ -233,4 +234,13 @@ func (hm *hubManager) removeEdge(c *connection, hb *hub) error {
 		}
 	}
 	return nil
+}
+
+func getHub(r render.Render) {
+	r.HTML(200, "room", nil)
+}
+
+func createHub() {
+	// Todo
+	r.HTML(200, "room", nil)
 }

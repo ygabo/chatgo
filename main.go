@@ -75,8 +75,10 @@ func main() {
 	m.Post("/register", binding.Bind(User{}), postRegisterHandler)
 	m.Post("/edit", sessionauth.LoginRequired, binding.Bind(User{}), postEditHandler)
 
-	m.Get("/room", sessionauth.LoginRequired, wsHandler)
 	m.Get("/hub", sessionauth.LoginRequired, getHub)
+	m.Post("/hub", sessionauth.LoginRequired, binding.Bind(hub{}), createHub)
+
+	m.Get("/ws", sessionauth.LoginRequired, wsHandler)
 
 	m.Use(martini.Static("static"))
 	m.Run()
