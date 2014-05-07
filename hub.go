@@ -7,9 +7,11 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
 	r "github.com/dancannon/gorethink"
 	"github.com/martini-contrib/render"
+	"github.com/martini-contrib/sessionauth"
 )
 
 // hub maintains the set of active connections and broadcasts messages to the
@@ -240,7 +242,32 @@ func getHub(r render.Render) {
 	r.HTML(200, "room", nil)
 }
 
-func createHub() {
-	// Todo
-	r.HTML(200, "room", nil)
+func createHub(user sessionauth.User, newHub hub, r render.Render, req *http.Request) {
+
+	var hubInDB hub
+	query := rethink.Table("hub").Filter(rethink.Row.Field("name").Eq(newHub.HubName))
+	row, err := query.RunRow(dbSession)
+
+	if err == nil && !row.IsNil() {
+		// Register, error case.
+		if err := row.Scan(&hubInDB); err != nil {
+			fmt.Println("Error reading DB")
+		} else {
+			fmt.Println("User already exists. Redirecting to login.")
+		}
+
+		r.Redirect(sessionauth.RedirectUrl)
+		return
+	} else { // User doesn't exist, continue with registration.
+		if row.IsNil() {
+			fmt.Println("User doesn't exist. Registering...")
+		} else {
+			fmt.Println(err)
+		}
+	}
+
+	rethink.Table("hub").Insert(newHub).RunWrite(dbSession)
+	fmt.Println("New hub done. Try to connect to it")
+
+	r.Redirect(sessionauth.RedirectUrl)
 }
