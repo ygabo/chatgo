@@ -242,10 +242,10 @@ func getHub(r render.Render) {
 	r.HTML(200, "room", nil)
 }
 
-func createHub(user sessionauth.User, newHub hub, r render.Render, req *http.Request) {
+func createHub(user sessionauth.User, newHub hub, rend render.Render, req *http.Request) {
 
 	var hubInDB hub
-	query := rethink.Table("hub").Filter(rethink.Row.Field("name").Eq(newHub.HubName))
+	query := r.Table("hub").Filter(r.Row.Field("name").Eq(newHub.HubName))
 	row, err := query.RunRow(dbSession)
 
 	if err == nil && !row.IsNil() {
@@ -256,7 +256,7 @@ func createHub(user sessionauth.User, newHub hub, r render.Render, req *http.Req
 			fmt.Println("User already exists. Redirecting to login.")
 		}
 
-		r.Redirect(sessionauth.RedirectUrl)
+		rend.Redirect(sessionauth.RedirectUrl)
 		return
 	} else { // User doesn't exist, continue with registration.
 		if row.IsNil() {
@@ -266,8 +266,8 @@ func createHub(user sessionauth.User, newHub hub, r render.Render, req *http.Req
 		}
 	}
 
-	rethink.Table("hub").Insert(newHub).RunWrite(dbSession)
-	fmt.Println("New hub done. Try to connect to it")
+	r.Table("hub").Insert(newHub).RunWrite(dbSession)
+	fmt.Println("New hub done. Try to con")
 
-	r.Redirect(sessionauth.RedirectUrl)
+	rend.Redirect(sessionauth.RedirectUrl)
 }
