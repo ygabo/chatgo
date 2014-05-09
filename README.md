@@ -3,6 +3,10 @@ chatgo
 
 Chat rooms + user login with Go.   
 
-Using Martini + Gorilla websocket + RethinkDB. With AngularJS for the front end.
+Framework: [Martini](https://github.com/go-martini/martini)
+
+Persistence: [RethinkDB](http://rethinkdb.com/)
+
+Frontend: [AngularJS](https://angularjs.org/)
 
 For personal learning purposes only.
