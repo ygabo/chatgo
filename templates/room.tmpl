@@ -16,6 +16,7 @@
 		#chatWrap{
 			padding:0px;
 			height:	100%;
+			width: 100%;
 			overflow:auto;
 		}
 	</style>
@@ -70,8 +71,11 @@
 
 	app.controller("MainCtl", ["$scope", function($scope) {
 		$scope.messages = [];
+		$scope.hubs = [];
 		$scope.defaultID = "77133889-76fb-41d0-8483-ca902f701417"
-		var conn = new WebSocket("ws://192.168.1.103:3000/room");
+		$scope.hubs[$scope.defaultID] = []
+		console.log($scope.hubs)
+		var conn = new WebSocket("ws://localhost:3000/ws");
 		console.log(conn)
 		$scope.glued = true;
 
