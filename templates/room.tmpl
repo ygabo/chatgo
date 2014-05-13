@@ -73,6 +73,7 @@
 		$scope.hubs = [];
 		$scope.defaultID = "77133889-76fb-41d0-8483-ca902f701417"
 		$scope.hubs[$scope.defaultID] = []
+		$scope.activeID = $scope.defaultID
 		$scope.active = $scope.hubs[$scope.defaultID];
 
 		var conn = new WebSocket("ws://localhost:3000/ws");
@@ -109,12 +110,11 @@
 			});
 		};
 
-		// TODO: hub resource, to diff against different hubs
 		// Send to ws and properly input the correct hub ID.
 		$scope.send = function() {
 			if ($scope.msg) {
 				conn.send(JSON.stringify({
-	  				hub_id: $scope.defaultID,
+	  				hub_id: $scope.activeID,
 	  				body: $scope.msg
 				}));
 				$scope.msg = "";
