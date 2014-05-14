@@ -31,6 +31,14 @@
     	<ul class="nav navbar-nav">
 	      <li class="active"><a href="/">Away</a></li>
 	      <li><a href="/">Home</a></li>
+	      <li>
+	      	<div class="col-xs-8"style="padding:2px;padding-left:18px;">
+				<input class="form-control" type="text" ng-model="roomName" ng-enter="joinRoom()">
+			</div>
+			<div class="col-xs-1" style="padding-left:2px;padding-top:2px">
+				<button style="width:100%" class="btn btn-primary" ng-click="joinRoom()">Join</button>
+			</div>
+		   </li>
     	</ul> 
   </div>
 	<div id="chatWrap" glue-scroll ng-model="glued">
@@ -118,6 +126,17 @@
 	  				body: $scope.msg
 				}));
 				$scope.msg = "";
+			}
+		}
+
+		// Send to ws and properly input the correct hub ID.
+		$scope.joinRoom = function() {
+			if ($scope.roomName) {
+				conn.send(JSON.stringify({
+	  				type: 0, // type 0 for joining
+	  				room: $scope.roomName
+				}));
+				$scope.roomName = "";
 			}
 		}
 	}]);
