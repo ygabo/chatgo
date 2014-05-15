@@ -60,8 +60,9 @@
 		</div>
 	</div>
 <script src="build/angular.js"></script>
+<script src="build/angular-resource.js"></script>
 <script>
-	var app = angular.module("chat", []);
+	var app = angular.module("chat",  ["ngResource"]);
 	"use strict";
 	app.directive('ngEnter', function () {
 		return function (scope, element, attrs) {
@@ -83,9 +84,9 @@
 		$scope.hubs[$scope.defaultID] = []
 		$scope.activeID = $scope.defaultID
 		$scope.active = $scope.hubs[$scope.defaultID];
+ 		$scope.HubResource = $resource("/hubs/:id", {id: '@id'}, {})
 
 		var conn = new WebSocket("ws://localhost:3000/ws");
-		console.log(conn)
 		$scope.glued = true;
 
 		// called when the server closes the connection
