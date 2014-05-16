@@ -132,14 +132,11 @@
 
 		// Send to ws and properly input the correct hub ID.
 		$scope.joinRoom = function() {
-			if ($scope.roomName) {
-				conn.send(JSON.stringify({
-	  				type: 0, // type 0 for joining
-	  				room: $scope.roomName
-				}));
-				$scope.roomName = "";
-			}
-		}
+          $scope.HubResource.get({name: $scope.roomName}, 
+            function(data) {
+              $scope.hubs[data.id] = []
+          });
+        }
 	}]);
 
 	//https://rawgit.com/Luegg/angularjs-scroll-glue/master/src/scrollglue.js
