@@ -76,7 +76,9 @@ func main() {
 	m.Post("/edit", sessionauth.LoginRequired, binding.Bind(User{}), postEditHandler)
 
 	m.Get("/hub", sessionauth.LoginRequired, getHub)
-	m.Post("/hub", sessionauth.LoginRequired, binding.Bind(hub{}), createHub)
+	
+	m.Post("/room/:name", sessionauth.LoginRequired, binding.Bind(hub{}), createHub)
+	m.Get("/room", sessionauth.LoginRequired, getRoom)
 
 	m.Get("/ws", sessionauth.LoginRequired, wsHandler)
 

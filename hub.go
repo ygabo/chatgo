@@ -242,6 +242,10 @@ func getHub(r render.Render) {
 	r.HTML(200, "room", nil)
 }
 
+func getRoom(...) {
+	// get user's rooms
+}
+
 func createHub(user sessionauth.User, newHub hub, rend render.Render, req *http.Request) {
 
 	var hubInDB hub

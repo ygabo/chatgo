@@ -84,7 +84,7 @@
 		$scope.hubs[$scope.defaultID] = []
 		$scope.activeID = $scope.defaultID
 		$scope.active = $scope.hubs[$scope.defaultID];
- 		$scope.HubResource = $resource("/hubs/:id", {id: '@id'}, {})
+ 		$scope.HubResource = $resource("/room/:name", {name: '@name'}, {})
 
 		var conn = new WebSocket("ws://localhost:3000/ws");
 		$scope.glued = true;
