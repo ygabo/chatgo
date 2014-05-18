@@ -20,6 +20,7 @@ type hub struct {
 	HubID     string         `form:"-" gorethink:"id"`
 	HubName   string         `form:"name" gorethink:"name"`
 	HubAdmins map[string]int `form:"-" gorethink:"admins"`
+	HubUsers  map[User]bool
 
 	connections map[*connection]bool `form:"-" gorethink:"-"`
 	broadcast   chan msg             `form:"-" gorethink:"-"`
@@ -242,7 +243,18 @@ func getHub(r render.Render) {
 	r.HTML(200, "room", nil)
 }
 
-func getRoom(...) {
+type HubUsers struct {
+	HubName string
+	HubId
+}
+
+func (hm *hubManager) getUsersFromHub(hubID string) {
+	hub := hm.HubMap[hubID]
+
+	return hub.HubUsers
+}
+
+func getRoom() {
 	// get user's rooms
 }
 
