@@ -20,7 +20,7 @@ type hub struct {
 	HubID     string         `form:"-" gorethink:"id"`
 	HubName   string         `form:"name" gorethink:"name"`
 	HubAdmins map[string]int `form:"-" gorethink:"admins"`
-	HubUsers  map[User]bool
+	HubUsers  map[*User]bool
 
 	connections map[*connection]bool `form:"-" gorethink:"-"`
 	broadcast   chan msg             `form:"-" gorethink:"-"`
@@ -245,13 +245,13 @@ func getHub(r render.Render) {
 
 type HubUsers struct {
 	HubName string
-	HubId
+	HubId   string
 }
 
-func (hm *hubManager) getUsersFromHub(hubID string) {
+func (hm *hubManager) getUsersFromHub(hubID string) *map[*User]bool {
 	hub := hm.HubMap[hubID]
 
-	return hub.HubUsers
+	return &hub.HubUsers
 }
 
 func getRoom() {
