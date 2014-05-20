@@ -9,4 +9,4 @@ Persistence: [RethinkDB](http://rethinkdb.com/)
 
 Frontend: [AngularJS](https://angularjs.org/)
 
-For personal learning purposes only.
+For personal learning purposes only. Project still in progress.
