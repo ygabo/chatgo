@@ -248,10 +248,10 @@ type HubUsers struct {
 	HubId   string
 }
 
-func (hm *hubManager) getUsersFromHub(hubID string) *map[*User]bool {
+func (hm *hubManager) getUsersFromHub(hubID string) *map[*connection]bool {
 	hub := hm.HubMap[hubID]
 
-	return &hub.HubUsers
+	return &hm.EdgeMap.Hub_to_users[hub]
 }
 
 func getRoom() {
