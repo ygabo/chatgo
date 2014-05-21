@@ -20,7 +20,6 @@ type hub struct {
 	HubID     string         `form:"-" gorethink:"id"`
 	HubName   string         `form:"name" gorethink:"name"`
 	HubAdmins map[string]int `form:"-" gorethink:"admins"`
-	HubUsers  map[*User]bool
 
 	connections map[*connection]bool `form:"-" gorethink:"-"`
 	broadcast   chan msg             `form:"-" gorethink:"-"`
@@ -241,11 +240,6 @@ func (hm *hubManager) removeEdge(c *connection, hb *hub) error {
 
 func getHub(r render.Render) {
 	r.HTML(200, "room", nil)
-}
-
-type HubUsers struct {
-	HubName string
-	HubId   string
 }
 
 func (hm *hubManager) getUsersFromHub(hubID string) *map[*connection]bool {
