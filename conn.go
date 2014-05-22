@@ -88,9 +88,16 @@ func (c *connection) readPump() {
 		// Send the message to the proper hub
 		// Check if user is part of the hub first.
 		// Then send the message to the hub.
-		//b, err := json.Marshal(msg)
-		//fmt.Println(b)
 		fmt.Println(msg)
+		// We should have a system to determine what type of message we got
+		// and do actions accordingly.
+		// eg.
+		// 100 = normal broadcast to hubid attached
+		// 200 = create room, with room name
+		// 201 = rename room, must have hubid attached, must be admin
+		// 300 = leave room
+		// 301 = leave all
+
 		if err == nil {
 			h.bCastToHub <- hubConnMsg{Con: c, HubID: msg.HubID, Msg: &msg}
 		} else {
