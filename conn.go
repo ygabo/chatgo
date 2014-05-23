@@ -48,6 +48,7 @@ type connection struct {
 }
 
 type msg struct {
+	Type  int    `json:"msg_type"`
 	HubID string `json:"hub_id"`
 	From  string `json:"from,omitempty"`
 	Body  string `json:"body"`
