@@ -28,6 +28,20 @@ const (
 
 	// Maximum message size allowed from peer.
 	maxMessageSize = 512
+
+	// We should have a system to determine what type of message we got
+	// and do actions accordingly.
+	// eg.
+	// 100 = normal broadcast to hubid attached
+	// 200 = create room, with room name
+	// 201 = rename room, must have hubid attached, must be admin
+	// 300 = leave room
+	// 301 = leave all
+	msgTypeBroadcast  = 100
+	msgTypeCreateRoom = 200
+	msgTypeJoinRoom   = 201
+	msgTypeLeaveRoom  = 300
+	msgTypeLeaveAll   = 301
 )
 
 var upgrader = websocket.Upgrader{
@@ -90,17 +104,21 @@ func (c *connection) readPump() {
 		// Check if user is part of the hub first.
 		// Then send the message to the hub.
 		fmt.Println(msg)
-		// We should have a system to determine what type of message we got
-		// and do actions accordingly.
-		// eg.
-		// 100 = normal broadcast to hubid attached
-		// 200 = create room, with room name
-		// 201 = rename room, must have hubid attached, must be admin
-		// 300 = leave room
-		// 301 = leave all
 
 		if err == nil {
-			h.bCastToHub <- hubConnMsg{Con: c, HubID: msg.HubID, Msg: &msg}
+			if msg.Type == msgTypeBroadcast {
+				h.bCastToHub <- hubConnMsg{Con: c, HubID: msg.HubID, Msg: &msg}
+			} else if msg.Type == msgTypeJoinRoom {
+				// Todo
+			} else if msg.Type == msgTypeCreateRoom {
+				// Todo
+			} else if msg.Type == msgTypeLeaveRoom {
+				// Todo
+			} else if msg.Type == msgTypeLeaveAll {
+				// Todo
+			} else {
+				// Todo
+			}
 		} else {
 			fmt.Println("Error decoding message, ", err)
 		}
