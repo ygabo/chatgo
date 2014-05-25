@@ -244,8 +244,9 @@ func getHub(r render.Render) {
 
 func (hm *hubManager) getUsersFromHub(hubID string) *map[*connection]bool {
 	hub := hm.HubMap[hubID]
+	connections := hm.EdgeMap.Hub_to_users[hub]
 
-	return &hm.EdgeMap.Hub_to_users[hub]
+	return &connections
 }
 
 func getRoom() {
