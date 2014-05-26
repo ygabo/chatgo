@@ -44,9 +44,10 @@ type hubConnMsg struct {
 
 // hubManger is the in-memory hub manager
 type hubManager struct {
-	HubMap     map[string]*hub // maps hub IDs to the actual hub objects
-	EdgeMap    *Edges          // represents edges between users and hubs
-	DefaultHub *hub            // default hub everyone connects to first
+	HubMap     map[string]*hub        // maps hub IDs to the actual hub objects
+	UserMap    map[string]*connection // maps user IDs to the actual connection objects
+	EdgeMap    *Edges                 // represents edges between users and hubs
+	DefaultHub *hub                   // default hub everyone connects to first
 
 	newHub     chan hubConnMsg
 	addEdge    chan hubConnMsg
@@ -249,8 +250,11 @@ func (hm *hubManager) getUsersFromHub(hubID string) *map[*connection]bool {
 	return &connections
 }
 
-func getRoom() {
-	// get user's rooms
+func (hm *hubManager) getRoom(userID string) *map[*hub]bool {
+	userConn := hm.UserMap[userID]
+	userHubs := hm.EdgeMap.User_to_hubs[userConn]
+
+	return &userHubs
 }
 
 func createHub(user sessionauth.User, newHub hub, rend render.Render, req *http.Request) {
