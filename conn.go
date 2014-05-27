@@ -109,7 +109,9 @@ func (c *connection) readPump() {
 			if msg.Type == msgTypeBroadcast {
 				h.bCastToHub <- hubConnMsg{Con: c, HubID: msg.HubID, Msg: &msg}
 			} else if msg.Type == msgTypeJoinRoom {
-				// Todo
+				hub := h.HubMap[msg.HubID]
+				h.addEdge <- hubConnMsg{Con: c, Hub: hub}
+				// Todo reply with all users in hub and other hub metadata
 			} else if msg.Type == msgTypeCreateRoom {
 				// Todo
 			} else if msg.Type == msgTypeLeaveRoom {
