@@ -184,7 +184,8 @@ func (hm *hubManager) run() {
 		case n := <-hm.newHub:
 			hm.HubMap[n.Hub.HubID] = n.Hub
 		case a := <-hm.addEdge:
-			hm.insertEdge(a.Con, a.Hub)
+			hub := hm.HubMap[a.HubID]
+			hm.insertEdge(a.Con, hub)
 		case r := <-hm.remEdge:
 			hm.removeEdge(r.Con, r.Hub)
 		case b := <-hm.bCastToHub:
